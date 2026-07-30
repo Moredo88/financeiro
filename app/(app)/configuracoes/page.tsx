@@ -9,7 +9,10 @@ import EmptyState from '@/components/ui/EmptyState'
 import Badge from '@/components/ui/Badge'
 import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
 
-type Tab = 'categorias' | 'classes' | 'contas' | 'frequencias'
+type Tab =
+  | 'categorias' | 'classes' | 'contas' | 'frequencias'
+  | 'classes_ativo' | 'categorias_ativo' | 'segmentos' | 'bancos_corretoras'
+  | 'casas_analise' | 'carteiras' | 'estrategias' | 'tags_exposicao'
 
 interface CadastroItem {
   id: string
@@ -22,6 +25,14 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'classes', label: 'Classes' },
   { key: 'contas', label: 'Contas' },
   { key: 'frequencias', label: 'Frequencias' },
+  { key: 'classes_ativo', label: 'Classes de Ativo' },
+  { key: 'categorias_ativo', label: 'Categorias de Ativo' },
+  { key: 'segmentos', label: 'Segmentos' },
+  { key: 'bancos_corretoras', label: 'Bancos/Corretoras' },
+  { key: 'casas_analise', label: 'Casas de Analise' },
+  { key: 'carteiras', label: 'Carteiras' },
+  { key: 'estrategias', label: 'Estrategias' },
+  { key: 'tags_exposicao', label: 'Tags de Exposicao' },
 ]
 
 export default function ConfiguracoesPage() {
@@ -83,7 +94,7 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}
