@@ -12,13 +12,26 @@ CREATE TABLE user_roles (
 
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
+-- SECURITY DEFINER: roda com privilegios do dono da funcao (bypass de RLS),
+-- evitando que a policy abaixo consulte user_roles dentro de si mesma
+-- (o que causa "infinite recursion detected in policy for relation").
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  );
+$$;
+
 CREATE POLICY "self_read" ON user_roles
   FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "admin_manage" ON user_roles
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- ============================================================
 -- TABELAS DE CADASTRO
