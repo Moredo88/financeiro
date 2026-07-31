@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import Input from '@/components/ui/Input'
-import Select from '@/components/ui/Select'
+import MultiSelect from '@/components/ui/MultiSelect'
 import {
   DollarSign,
   TrendingUp,
@@ -38,6 +38,11 @@ interface Lancamento {
   conta_id: string | null
 }
 
+const STATUS_OPTIONS = [
+  { value: 'R', label: 'Realizado' },
+  { value: 'P', label: 'Previsto' },
+]
+
 const COLORS = [
   '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
   '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6',
@@ -53,10 +58,10 @@ export default function DashboardPage() {
   const [filters, setFilters] = useState({
     dataInicio: '',
     dataFim: '',
-    categoria_id: '',
-    classe_id: '',
-    conta_id: '',
-    status: '',
+    categoria_id: [] as string[],
+    classe_id: [] as string[],
+    conta_id: [] as string[],
+    status: [] as string[],
   })
 
   const supabase = createClient()
@@ -83,10 +88,10 @@ export default function DashboardPage() {
 
     if (filters.dataInicio) query = query.gte('data', filters.dataInicio)
     if (filters.dataFim) query = query.lte('data', filters.dataFim)
-    if (filters.categoria_id) query = query.eq('categoria_id', filters.categoria_id)
-    if (filters.classe_id) query = query.eq('classe_id', filters.classe_id)
-    if (filters.conta_id) query = query.eq('conta_id', filters.conta_id)
-    if (filters.status) query = query.eq('status', filters.status)
+    if (filters.categoria_id.length > 0) query = query.in('categoria_id', filters.categoria_id)
+    if (filters.classe_id.length > 0) query = query.in('classe_id', filters.classe_id)
+    if (filters.conta_id.length > 0) query = query.in('conta_id', filters.conta_id)
+    if (filters.status.length > 0) query = query.in('status', filters.status)
 
     const { data } = await query
     setLancamentos(data ?? [])
@@ -99,6 +104,10 @@ export default function DashboardPage() {
 
   function updateFilter(field: string, value: string) {
     setFilters((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function updateMultiFilter(field: string, values: string[]) {
+    setFilters((prev) => ({ ...prev, [field]: values }))
   }
 
   const toOptions = (items: CadastroItem[]) => items.map((i) => ({ value: i.id, label: i.nome }))
@@ -169,36 +178,33 @@ export default function DashboardPage() {
             onChange={(e) => updateFilter('dataFim', e.target.value)}
             label="Ate"
           />
-          <Select
+          <MultiSelect
             label="Categoria"
             options={toOptions(categorias)}
             placeholder="Todas"
-            value={filters.categoria_id}
-            onChange={(e) => updateFilter('categoria_id', e.target.value)}
+            values={filters.categoria_id}
+            onChange={(values) => updateMultiFilter('categoria_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Classe"
             options={toOptions(classes)}
             placeholder="Todas"
-            value={filters.classe_id}
-            onChange={(e) => updateFilter('classe_id', e.target.value)}
+            values={filters.classe_id}
+            onChange={(values) => updateMultiFilter('classe_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Conta"
             options={toOptions(contas)}
             placeholder="Todas"
-            value={filters.conta_id}
-            onChange={(e) => updateFilter('conta_id', e.target.value)}
+            values={filters.conta_id}
+            onChange={(values) => updateMultiFilter('conta_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Status"
-            options={[
-              { value: 'R', label: 'Realizado' },
-              { value: 'P', label: 'Previsto' },
-            ]}
+            options={STATUS_OPTIONS}
             placeholder="Todos"
-            value={filters.status}
-            onChange={(e) => updateFilter('status', e.target.value)}
+            values={filters.status}
+            onChange={(values) => updateMultiFilter('status', values)}
           />
         </div>
       </div>

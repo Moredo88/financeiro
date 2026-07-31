@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { calcularPosicoes, type AtivoCalc, type MovimentacaoCalc } from '@/lib/investimentos/posicao'
-import Select from '@/components/ui/Select'
+import MultiSelect from '@/components/ui/MultiSelect'
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -58,7 +58,11 @@ export default function EstrategiaPage() {
   const [classes, setClasses] = useState<LookupItem[]>([])
   const [bancos, setBancos] = useState<LookupItem[]>([])
 
-  const [filters, setFilters] = useState({ carteira_id: '', classe_id: '', banco_corretora_id: '' })
+  const [filters, setFilters] = useState({
+    carteira_id: [] as string[],
+    classe_id: [] as string[],
+    banco_corretora_id: [] as string[],
+  })
 
   const supabase = createClient()
 
@@ -83,9 +87,9 @@ export default function EstrategiaPage() {
       .from('ativos')
       .select('id, ticker, classe_id, carteira_id, banco_corretora_id, segmento_id, casa_analise_id, estrategia_id, alocacao_alvo, aporte_planejado, recomendacao_atual, cotacao_atual, saldo_devedor, classes_ativo(nome), segmentos(nome), casas_analise(nome), estrategias(nome)')
 
-    if (filters.carteira_id) ativosQuery = ativosQuery.eq('carteira_id', filters.carteira_id)
-    if (filters.classe_id) ativosQuery = ativosQuery.eq('classe_id', filters.classe_id)
-    if (filters.banco_corretora_id) ativosQuery = ativosQuery.eq('banco_corretora_id', filters.banco_corretora_id)
+    if (filters.carteira_id.length > 0) ativosQuery = ativosQuery.in('carteira_id', filters.carteira_id)
+    if (filters.classe_id.length > 0) ativosQuery = ativosQuery.in('classe_id', filters.classe_id)
+    if (filters.banco_corretora_id.length > 0) ativosQuery = ativosQuery.in('banco_corretora_id', filters.banco_corretora_id)
 
     const [ativosRes, movRes, tagsRes] = await Promise.all([
       ativosQuery,
@@ -113,8 +117,8 @@ export default function EstrategiaPage() {
     loadData()
   }, [loadData])
 
-  function updateFilter(field: string, value: string) {
-    setFilters((prev) => ({ ...prev, [field]: value }))
+  function updateFilter(field: string, values: string[]) {
+    setFilters((prev) => ({ ...prev, [field]: values }))
   }
 
   const ativosCalc: AtivoCalc[] = ativos.map((a) => ({
@@ -172,26 +176,26 @@ export default function EstrategiaPage() {
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Select
+          <MultiSelect
             label="Carteira"
             options={carteiras.map((c) => ({ value: c.id, label: c.nome }))}
             placeholder="Todas"
-            value={filters.carteira_id}
-            onChange={(e) => updateFilter('carteira_id', e.target.value)}
+            values={filters.carteira_id}
+            onChange={(values) => updateFilter('carteira_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Classe"
             options={classes.map((c) => ({ value: c.id, label: c.nome }))}
             placeholder="Todas"
-            value={filters.classe_id}
-            onChange={(e) => updateFilter('classe_id', e.target.value)}
+            values={filters.classe_id}
+            onChange={(values) => updateFilter('classe_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Corretora"
             options={bancos.map((b) => ({ value: b.id, label: b.nome }))}
             placeholder="Todas"
-            value={filters.banco_corretora_id}
-            onChange={(e) => updateFilter('banco_corretora_id', e.target.value)}
+            values={filters.banco_corretora_id}
+            onChange={(values) => updateFilter('banco_corretora_id', values)}
           />
         </div>
       </div>
