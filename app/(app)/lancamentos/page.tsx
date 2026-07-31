@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { addDays, addWeeks, addMonths, addYears, format, parseISO } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate, STATUS_COLORS } from '@/lib/utils'
 import Button from '@/components/ui/Button'
@@ -40,6 +41,33 @@ const STATUS_OPTIONS = [
   { value: 'P', label: 'Previsto' },
 ]
 
+const MAX_OCORRENCIAS_RECORRENCIA = 500
+
+const INCREMENTO_POR_FREQUENCIA: Record<string, (d: Date) => Date> = {
+  Diario: (d) => addDays(d, 1),
+  Semanal: (d) => addWeeks(d, 1),
+  Mensal: (d) => addMonths(d, 1),
+  Trimestral: (d) => addMonths(d, 3),
+  Semestral: (d) => addMonths(d, 6),
+  Anual: (d) => addYears(d, 1),
+}
+
+function gerarDatasRecorrencia(dataInicio: string, dataFim: string, frequenciaNome: string | undefined): string[] {
+  const incrementar = frequenciaNome ? INCREMENTO_POR_FREQUENCIA[frequenciaNome] : undefined
+  if (!incrementar) return [dataInicio]
+
+  const fim = parseISO(dataFim)
+  const datas: string[] = []
+  let atual = parseISO(dataInicio)
+
+  while (atual <= fim && datas.length < MAX_OCORRENCIAS_RECORRENCIA + 1) {
+    datas.push(format(atual, 'yyyy-MM-dd'))
+    atual = incrementar(atual)
+  }
+
+  return datas
+}
+
 const emptyForm = {
   data: new Date().toISOString().slice(0, 10),
   valor: '',
@@ -52,6 +80,8 @@ const emptyForm = {
   reembolso: '',
   status: 'R',
   observacao: '',
+  recorrente: false,
+  dataFimRecorrencia: '',
 }
 
 export default function LancamentosPage() {
@@ -146,16 +176,21 @@ export default function LancamentosPage() {
       reembolso: l.reembolso ?? '',
       status: l.status,
       observacao: l.observacao ?? '',
+      recorrente: false,
+      dataFimRecorrencia: '',
     })
     setModalOpen(true)
   }
 
   async function handleSave() {
     if (!form.data || !form.valor) return
+
+    if (!editId && form.recorrente && !form.dataFimRecorrencia) return
+    if (!editId && form.recorrente && form.dataFimRecorrencia < form.data) return
+
     setSaving(true)
 
-    const payload = {
-      data: form.data,
+    const basePayload = {
       valor: parseFloat(form.valor),
       descricao: form.descricao || null,
       categoria_id: form.categoria_id || null,
@@ -169,9 +204,20 @@ export default function LancamentosPage() {
     }
 
     if (editId) {
-      await supabase.from('lancamentos').update(payload).eq('id', editId)
+      await supabase.from('lancamentos').update({ ...basePayload, data: form.data }).eq('id', editId)
+    } else if (form.recorrente) {
+      const frequenciaNome = frequencias.find((f) => f.id === form.frequencia_id)?.nome
+      const datas = gerarDatasRecorrencia(form.data, form.dataFimRecorrencia, frequenciaNome)
+
+      if (datas.length > MAX_OCORRENCIAS_RECORRENCIA) {
+        alert(`Esse periodo gera mais de ${MAX_OCORRENCIAS_RECORRENCIA} lancamentos. Reduza o intervalo entre Inicio e Fim.`)
+        setSaving(false)
+        return
+      }
+
+      await supabase.from('lancamentos').insert(datas.map((data) => ({ ...basePayload, data })))
     } else {
-      await supabase.from('lancamentos').insert(payload)
+      await supabase.from('lancamentos').insert({ ...basePayload, data: form.data })
     }
 
     setSaving(false)
@@ -191,6 +237,10 @@ export default function LancamentosPage() {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  function toggleRecorrente() {
+    setForm((prev) => ({ ...prev, recorrente: !prev.recorrente }))
+  }
+
   function updateFilter(field: string, value: string) {
     setFilters((prev) => ({ ...prev, [field]: value }))
     setPage(0)
@@ -203,6 +253,9 @@ export default function LancamentosPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const toOptions = (items: CadastroItem[]) => items.map((i) => ({ value: i.id, label: i.nome }))
+
+  const frequenciaSelecionadaNome = frequencias.find((f) => f.id === form.frequencia_id)?.nome
+  const frequenciaSuportaRecorrencia = !!frequenciaSelecionadaNome && frequenciaSelecionadaNome in INCREMENTO_POR_FREQUENCIA
 
   return (
     <div className="space-y-6">
@@ -416,6 +469,30 @@ export default function LancamentosPage() {
             value={form.frequencia_id}
             onChange={(e) => updateForm('frequencia_id', e.target.value)}
           />
+          {!editId && frequenciaSuportaRecorrencia && (
+            <div className="md:col-span-2 rounded-lg border border-slate-200 p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.recorrente}
+                  onChange={toggleRecorrente}
+                  className="rounded border-slate-300"
+                />
+                Lancamento recorrente (repete pela Frequencia selecionada)
+              </label>
+              {form.recorrente && (
+                <Input
+                  id="f-fim-recorrencia"
+                  label={`Repetir ate (a partir de ${form.data ? formatDate(form.data) : '-'})`}
+                  type="date"
+                  value={form.dataFimRecorrencia}
+                  min={form.data}
+                  onChange={(e) => updateForm('dataFimRecorrencia', e.target.value)}
+                  required
+                />
+              )}
+            </div>
+          )}
           <Select
             id="f-conta"
             label="Conta"
