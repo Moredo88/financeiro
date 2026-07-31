@@ -50,6 +50,12 @@ export default function MultiSelect({
     onChange([])
   }
 
+  const allSelected = options.length > 0 && values.length === options.length
+
+  function toggleSelectAll() {
+    onChange(allSelected ? [] : options.map((o) => o.value))
+  }
+
   const summary =
     values.length === 0
       ? placeholder
@@ -92,20 +98,31 @@ export default function MultiSelect({
             {options.length === 0 ? (
               <p className="px-3 py-2 text-sm text-slate-400">Nenhuma opcao</p>
             ) : (
-              options.map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
+              <>
+                <label className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-100">
                   <input
                     type="checkbox"
-                    checked={values.includes(opt.value)}
-                    onChange={() => toggleValue(opt.value)}
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
                     className="rounded border-slate-300"
                   />
-                  {opt.label}
+                  Selecionar todas
                 </label>
-              ))
+                {options.map((opt) => (
+                  <label
+                    key={opt.value}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={values.includes(opt.value)}
+                      onChange={() => toggleValue(opt.value)}
+                      className="rounded border-slate-300"
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </>
             )}
           </div>
         )}

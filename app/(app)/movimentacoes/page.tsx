@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import MultiSelect from '@/components/ui/MultiSelect'
 import Modal from '@/components/ui/Modal'
 import Textarea from '@/components/ui/Textarea'
 import EmptyState from '@/components/ui/EmptyState'
@@ -63,9 +64,9 @@ export default function MovimentacoesPage() {
   const [instituicoes, setInstituicoes] = useState<LookupItem[]>([])
 
   const [filters, setFilters] = useState({
-    ativo_id: '',
-    tipo_evento: '',
-    instituicao_id: '',
+    ativo_id: [] as string[],
+    tipo_evento: [] as string[],
+    instituicao_id: [] as string[],
     dataInicio: '',
     dataFim: '',
   })
@@ -100,9 +101,9 @@ export default function MovimentacoesPage() {
       .order('data_evento', { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
-    if (filters.ativo_id) query = query.eq('ativo_id', filters.ativo_id)
-    if (filters.tipo_evento) query = query.eq('tipo_evento', filters.tipo_evento)
-    if (filters.instituicao_id) query = query.eq('instituicao_id', filters.instituicao_id)
+    if (filters.ativo_id.length > 0) query = query.in('ativo_id', filters.ativo_id)
+    if (filters.tipo_evento.length > 0) query = query.in('tipo_evento', filters.tipo_evento)
+    if (filters.instituicao_id.length > 0) query = query.in('instituicao_id', filters.instituicao_id)
     if (filters.dataInicio) query = query.gte('data_evento', filters.dataInicio)
     if (filters.dataFim) query = query.lte('data_evento', filters.dataFim)
 
@@ -169,6 +170,11 @@ export default function MovimentacoesPage() {
     setPage(0)
   }
 
+  function updateMultiFilter(field: string, values: string[]) {
+    setFilters((prev) => ({ ...prev, [field]: values }))
+    setPage(0)
+  }
+
   async function handleSave() {
     if (!form.ativo_id || !form.data_evento || !form.tipo_evento) return
     setSaving(true)
@@ -210,26 +216,26 @@ export default function MovimentacoesPage() {
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <Select
+          <MultiSelect
             label="Ticker"
             options={ativoOptions}
             placeholder="Todos"
-            value={filters.ativo_id}
-            onChange={(e) => updateFilter('ativo_id', e.target.value)}
+            values={filters.ativo_id}
+            onChange={(values) => updateMultiFilter('ativo_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Tipo de Evento"
             options={TIPO_EVENTO_OPTIONS}
             placeholder="Todos"
-            value={filters.tipo_evento}
-            onChange={(e) => updateFilter('tipo_evento', e.target.value)}
+            values={filters.tipo_evento}
+            onChange={(values) => updateMultiFilter('tipo_evento', values)}
           />
-          <Select
+          <MultiSelect
             label="Instituicao"
             options={toOptions(instituicoes)}
             placeholder="Todas"
-            value={filters.instituicao_id}
-            onChange={(e) => updateFilter('instituicao_id', e.target.value)}
+            values={filters.instituicao_id}
+            onChange={(values) => updateMultiFilter('instituicao_id', values)}
           />
           <Input
             type="date"

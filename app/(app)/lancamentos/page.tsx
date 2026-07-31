@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, STATUS_COLORS } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import MultiSelect from '@/components/ui/MultiSelect'
 import Modal from '@/components/ui/Modal'
 import Textarea from '@/components/ui/Textarea'
 import Badge from '@/components/ui/Badge'
@@ -33,6 +34,11 @@ interface Lancamento {
 }
 
 const PAGE_SIZE = 25
+
+const STATUS_OPTIONS = [
+  { value: 'R', label: 'Realizado' },
+  { value: 'P', label: 'Previsto' },
+]
 
 const emptyForm = {
   data: new Date().toISOString().slice(0, 10),
@@ -62,11 +68,11 @@ export default function LancamentosPage() {
   const [filters, setFilters] = useState({
     dataInicio: '',
     dataFim: '',
-    categoria_id: '',
-    classe_id: '',
-    conta_id: '',
-    frequencia_id: '',
-    status: '',
+    categoria_id: [] as string[],
+    classe_id: [] as string[],
+    conta_id: [] as string[],
+    frequencia_id: [] as string[],
+    status: [] as string[],
   })
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -104,11 +110,11 @@ export default function LancamentosPage() {
 
     if (filters.dataInicio) query = query.gte('data', filters.dataInicio)
     if (filters.dataFim) query = query.lte('data', filters.dataFim)
-    if (filters.categoria_id) query = query.eq('categoria_id', filters.categoria_id)
-    if (filters.classe_id) query = query.eq('classe_id', filters.classe_id)
-    if (filters.conta_id) query = query.eq('conta_id', filters.conta_id)
-    if (filters.frequencia_id) query = query.eq('frequencia_id', filters.frequencia_id)
-    if (filters.status) query = query.eq('status', filters.status)
+    if (filters.categoria_id.length > 0) query = query.in('categoria_id', filters.categoria_id)
+    if (filters.classe_id.length > 0) query = query.in('classe_id', filters.classe_id)
+    if (filters.conta_id.length > 0) query = query.in('conta_id', filters.conta_id)
+    if (filters.frequencia_id.length > 0) query = query.in('frequencia_id', filters.frequencia_id)
+    if (filters.status.length > 0) query = query.in('status', filters.status)
 
     const { data, count } = await query
     setLancamentos((data as Lancamento[]) ?? [])
@@ -190,6 +196,11 @@ export default function LancamentosPage() {
     setPage(0)
   }
 
+  function updateMultiFilter(field: string, values: string[]) {
+    setFilters((prev) => ({ ...prev, [field]: values }))
+    setPage(0)
+  }
+
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const toOptions = (items: CadastroItem[]) => items.map((i) => ({ value: i.id, label: i.nome }))
 
@@ -212,43 +223,40 @@ export default function LancamentosPage() {
             onChange={(e) => updateFilter('dataFim', e.target.value)}
             label="Ate"
           />
-          <Select
+          <MultiSelect
             label="Categoria"
             options={toOptions(categorias)}
             placeholder="Todas"
-            value={filters.categoria_id}
-            onChange={(e) => updateFilter('categoria_id', e.target.value)}
+            values={filters.categoria_id}
+            onChange={(values) => updateMultiFilter('categoria_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Classe"
             options={toOptions(classes)}
             placeholder="Todas"
-            value={filters.classe_id}
-            onChange={(e) => updateFilter('classe_id', e.target.value)}
+            values={filters.classe_id}
+            onChange={(values) => updateMultiFilter('classe_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Conta"
             options={toOptions(contas)}
             placeholder="Todas"
-            value={filters.conta_id}
-            onChange={(e) => updateFilter('conta_id', e.target.value)}
+            values={filters.conta_id}
+            onChange={(values) => updateMultiFilter('conta_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Frequencia"
             options={toOptions(frequencias)}
             placeholder="Todas"
-            value={filters.frequencia_id}
-            onChange={(e) => updateFilter('frequencia_id', e.target.value)}
+            values={filters.frequencia_id}
+            onChange={(values) => updateMultiFilter('frequencia_id', values)}
           />
-          <Select
+          <MultiSelect
             label="Status"
-            options={[
-              { value: 'R', label: 'Realizado' },
-              { value: 'P', label: 'Previsto' },
-            ]}
+            options={STATUS_OPTIONS}
             placeholder="Todos"
-            value={filters.status}
-            onChange={(e) => updateFilter('status', e.target.value)}
+            values={filters.status}
+            onChange={(values) => updateMultiFilter('status', values)}
           />
         </div>
       </div>
@@ -431,10 +439,7 @@ export default function LancamentosPage() {
           <Select
             id="f-status"
             label="Status"
-            options={[
-              { value: 'R', label: 'Realizado' },
-              { value: 'P', label: 'Previsto' },
-            ]}
+            options={STATUS_OPTIONS}
             value={form.status}
             onChange={(e) => updateForm('status', e.target.value)}
           />
