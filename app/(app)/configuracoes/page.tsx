@@ -12,7 +12,7 @@ import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
 type Tab =
   | 'categorias' | 'classes' | 'contas' | 'frequencias'
   | 'classes_ativo' | 'categorias_ativo' | 'segmentos' | 'bancos_corretoras'
-  | 'casas_analise' | 'carteiras' | 'estrategias' | 'tags_exposicao'
+  | 'casas_analise'
 
 interface CadastroItem {
   id: string
@@ -30,9 +30,6 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'segmentos', label: 'Segmentos' },
   { key: 'bancos_corretoras', label: 'Bancos/Corretoras' },
   { key: 'casas_analise', label: 'Casas de Analise' },
-  { key: 'carteiras', label: 'Carteiras' },
-  { key: 'estrategias', label: 'Estrategias' },
-  { key: 'tags_exposicao', label: 'Tags de Exposicao' },
 ]
 
 export default function ConfiguracoesPage() {

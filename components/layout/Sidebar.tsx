@@ -14,6 +14,7 @@ import {
   LogOut,
   DollarSign,
   Landmark,
+  SlidersHorizontal,
   ArrowLeftRight,
   PieChart,
   BarChart3,
@@ -32,6 +33,7 @@ const navigation = [
 
 const investimentosNavigation = [
   { name: 'Ativos', href: '/ativos', icon: Landmark },
+  { name: 'Parametros', href: '/parametros', icon: SlidersHorizontal },
   { name: 'Movimentacoes', href: '/movimentacoes', icon: ArrowLeftRight },
   { name: 'Dashboard Estrategia', href: '/estrategia', icon: PieChart },
   { name: 'Dashboard Gestao', href: '/gestao', icon: BarChart3 },
