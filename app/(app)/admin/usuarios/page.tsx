@@ -7,7 +7,7 @@ import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, KeyRound } from 'lucide-react'
 
 interface User {
   id: string
@@ -24,6 +24,12 @@ export default function UsuariosPage() {
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('usuario')
   const [saving, setSaving] = useState(false)
+
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [passwordUser, setPasswordUser] = useState<User | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
 
   async function loadUsers() {
     setLoading(true)
@@ -66,6 +72,35 @@ export default function UsuariosPage() {
     loadUsers()
   }
 
+  function openPasswordModal(user: User) {
+    setPasswordUser(user)
+    setNewPassword('')
+    setPasswordError('')
+    setPasswordModalOpen(true)
+  }
+
+  async function handleChangePassword() {
+    if (!passwordUser || !newPassword) return
+    setPasswordError('')
+    setSavingPassword(true)
+
+    const res = await fetch(`/api/admin/usuarios/${passwordUser.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword }),
+    })
+
+    setSavingPassword(false)
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setPasswordError(data.error ?? 'Falha ao alterar a senha.')
+      return
+    }
+
+    setPasswordModalOpen(false)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -104,12 +139,22 @@ export default function UsuariosPage() {
                     </select>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(u.id)}
-                      className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => openPasswordModal(u)}
+                        className="p-1 text-slate-400 hover:text-blue-600 cursor-pointer"
+                        title="Alterar senha"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -152,6 +197,39 @@ export default function UsuariosPage() {
             </Button>
             <Button onClick={handleCreate} loading={saving}>
               Criar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+        title={`Alterar senha — ${passwordUser?.email ?? ''}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <Input
+            id="u-new-password"
+            label="Nova senha"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Minimo 6 caracteres"
+            autoFocus
+            required
+          />
+          {passwordError && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {passwordError}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setPasswordModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleChangePassword} loading={savingPassword}>
+              Salvar
             </Button>
           </div>
         </div>

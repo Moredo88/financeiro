@@ -19,12 +19,24 @@ export async function PATCH(
   if (!admin) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const { role } = await request.json()
+  const { role, password } = await request.json()
   const supabaseAdmin = createAdminClient()
 
-  await supabaseAdmin
-    .from('user_roles')
-    .upsert({ user_id: id, role }, { onConflict: 'user_id' })
+  if (role) {
+    await supabaseAdmin
+      .from('user_roles')
+      .upsert({ user_id: id, role }, { onConflict: 'user_id' })
+  }
+
+  if (password) {
+    if (password.length < 6) {
+      return Response.json({ error: 'A senha deve ter pelo menos 6 caracteres.' }, { status: 400 })
+    }
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password })
+    if (error) {
+      return Response.json({ error: error.message }, { status: 400 })
+    }
+  }
 
   return Response.json({ success: true })
 }
