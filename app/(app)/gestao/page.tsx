@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { calcularPosicoes, type AtivoCalc, type MovimentacaoCalc, type Posicao } from '@/lib/investimentos/posicao'
+import { calcularPosicoes, ehClasseRendaFixa, type AtivoCalc, type MovimentacaoCalc, type Posicao } from '@/lib/investimentos/posicao'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { RefreshCw, Wallet, TrendingUp, Coins, AlertTriangle } from 'lucide-react'
@@ -26,7 +26,6 @@ interface AtivoRow {
 }
 
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316']
-const RF_CLASSES = ['Renda Fixa', 'Estruturada']
 const LIMITE_CONCENTRACAO = 20
 
 export default function GestaoPage() {
@@ -152,7 +151,7 @@ export default function GestaoPage() {
 
   // Vencimentos de Renda Fixa
   const vencimentosRF = ativos
-    .filter((a) => RF_CLASSES.includes(a.classes_ativo?.nome ?? '') && a.data_vencimento)
+    .filter((a) => ehClasseRendaFixa(a.classes_ativo?.nome) && a.data_vencimento)
     .sort((a, b) => (a.data_vencimento ?? '').localeCompare(b.data_vencimento ?? ''))
 
   const hoje = new Date()

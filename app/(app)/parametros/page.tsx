@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ehClasseRendaFixa } from '@/lib/investimentos/posicao'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -238,7 +239,7 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
   }
 
   const classeSelecionada = classes.find((c) => c.id === editAtivo?.classe_id)?.nome
-  const ehRendaFixa = classeSelecionada === 'Renda Fixa' || classeSelecionada === 'Estruturada'
+  const ehRendaFixa = ehClasseRendaFixa(classeSelecionada)
 
   return (
     <>

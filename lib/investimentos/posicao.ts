@@ -22,7 +22,12 @@ export interface Posicao {
   rentabilidade: number
 }
 
-const RENDA_FIXA_CLASSES = ['Renda Fixa', 'Estruturada']
+const RENDA_FIXA_CLASSES = ['RENDA FIXA', 'ESTRUTURADA', 'TESOURO DIRETO', 'COE']
+
+export function ehClasseRendaFixa(nome: string | null | undefined): boolean {
+  if (!nome) return false
+  return RENDA_FIXA_CLASSES.includes(nome.trim().toUpperCase())
+}
 
 export function calcularPosicao(ativo: AtivoCalc, movimentacoes: MovimentacaoCalc[]): Posicao {
   let quantidade = 0
@@ -59,7 +64,7 @@ export function calcularPosicao(ativo: AtivoCalc, movimentacoes: MovimentacaoCal
 
   const precoMedio = qtdComprada > 0 ? custoCompras / qtdComprada : 0
   const valorInvestido = precoMedio * quantidade
-  const ehRendaFixa = ativo.classe_nome ? RENDA_FIXA_CLASSES.includes(ativo.classe_nome) : false
+  const ehRendaFixa = ehClasseRendaFixa(ativo.classe_nome)
   const valorMercado = ehRendaFixa
     ? ativo.saldo_devedor ?? valorInvestido
     : quantidade * (ativo.cotacao_atual ?? precoMedio)
