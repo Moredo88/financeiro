@@ -36,11 +36,18 @@ interface Ativo {
   estrategias: { nome: string } | null
 }
 
-type LookupTable = 'carteiras' | 'estrategias' | 'tags_exposicao'
+type LookupTable =
+  | 'classes_ativo' | 'categorias_ativo' | 'segmentos' | 'bancos_corretoras' | 'casas_analise'
+  | 'carteiras' | 'estrategias' | 'tags_exposicao'
 type Section = 'ativos' | LookupTable
 
 const SECTIONS: { key: Section; label: string }[] = [
   { key: 'ativos', label: 'Parametros por Ativo' },
+  { key: 'classes_ativo', label: 'Classes de Ativo' },
+  { key: 'categorias_ativo', label: 'Categorias de Ativo' },
+  { key: 'segmentos', label: 'Segmentos' },
+  { key: 'bancos_corretoras', label: 'Bancos/Corretoras' },
+  { key: 'casas_analise', label: 'Casas de Analise' },
   { key: 'carteiras', label: 'Carteiras' },
   { key: 'estrategias', label: 'Estrategias' },
   { key: 'tags_exposicao', label: 'Tags de Exposicao' },

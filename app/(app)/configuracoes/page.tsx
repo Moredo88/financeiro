@@ -9,10 +9,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import Badge from '@/components/ui/Badge'
 import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
 
-type Tab =
-  | 'categorias' | 'classes' | 'contas' | 'frequencias'
-  | 'classes_ativo' | 'categorias_ativo' | 'segmentos' | 'bancos_corretoras'
-  | 'casas_analise'
+type Tab = 'categorias' | 'classes' | 'contas' | 'frequencias'
 
 interface CadastroItem {
   id: string
@@ -25,11 +22,6 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'classes', label: 'Classes' },
   { key: 'contas', label: 'Contas' },
   { key: 'frequencias', label: 'Frequencias' },
-  { key: 'classes_ativo', label: 'Classes de Ativo' },
-  { key: 'categorias_ativo', label: 'Categorias de Ativo' },
-  { key: 'segmentos', label: 'Segmentos' },
-  { key: 'bancos_corretoras', label: 'Bancos/Corretoras' },
-  { key: 'casas_analise', label: 'Casas de Analise' },
 ]
 
 export default function ConfiguracoesPage() {
