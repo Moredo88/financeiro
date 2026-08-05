@@ -29,11 +29,10 @@ interface Ativo {
   liquidez: string | null
   retorno_12m: number | null
   preco_teto: number | null
-  taxa_indexador: string | null
-  tipo_juros: string | null
+  indexador: string | null
   amortizacao: string | null
+  juros: string | null
   data_liquidacao: string | null
-  data_vencimento: string | null
   saldo_devedor: number | null
   classes_ativo: { nome: string } | null
   carteiras: { nome: string } | null
@@ -70,10 +69,20 @@ const LIQUIDEZ_OPTIONS = [
   { value: 'Baixa', label: 'Baixa' },
 ]
 
-const TIPO_JUROS_OPTIONS = [
-  { value: 'Pre', label: 'Pre' },
-  { value: 'Pos', label: 'Pos' },
-  { value: 'Hibrido', label: 'Hibrido' },
+const INDEXADOR_OPTIONS = [
+  { value: 'PRÉ-FIX', label: 'PRÉ-FIX' },
+  { value: 'PÓS-FIX (CDI)', label: 'PÓS-FIX (CDI)' },
+  { value: 'IPCA (INFLAÇÃO)', label: 'IPCA (INFLAÇÃO)' },
+  { value: 'SEM RETORNO', label: 'SEM RETORNO' },
+  { value: 'VARIÁVEL', label: 'VARIÁVEL' },
+  { value: 'DÓLAR', label: 'DÓLAR' },
+]
+
+// Amortizacao e Juros compartilham a mesma periodicidade.
+const PERIODICIDADE_OPTIONS = [
+  { value: 'Vencimento', label: 'Vencimento' },
+  { value: 'Semestral', label: 'Semestral' },
+  { value: 'Mensal', label: 'Mensal' },
 ]
 
 const emptyForm = {
@@ -85,11 +94,10 @@ const emptyForm = {
   liquidez: '',
   retorno_12m: '',
   preco_teto: '',
-  taxa_indexador: '',
-  tipo_juros: '',
+  indexador: '',
   amortizacao: '',
+  juros: '',
   data_liquidacao: '',
-  data_vencimento: '',
   saldo_devedor: '',
 }
 
@@ -141,7 +149,7 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
     setLoading(true)
     const { data } = await supabase
       .from('ativos')
-      .select('id, ticker, nome, classe_id, carteira_id, estrategia_id, alocacao_alvo, aporte_planejado, recomendacao_atual, liquidez, retorno_12m, preco_teto, taxa_indexador, tipo_juros, amortizacao, data_liquidacao, data_vencimento, saldo_devedor, classes_ativo(nome), carteiras(nome), estrategias(nome)')
+      .select('id, ticker, nome, classe_id, carteira_id, estrategia_id, alocacao_alvo, aporte_planejado, recomendacao_atual, liquidez, retorno_12m, preco_teto, indexador, amortizacao, juros, data_liquidacao, saldo_devedor, classes_ativo(nome), carteiras(nome), estrategias(nome)')
       .order('ticker')
     setAtivos((data as unknown as Ativo[]) ?? [])
     setLoading(false)
@@ -179,11 +187,10 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
       liquidez: a.liquidez ?? '',
       retorno_12m: a.retorno_12m != null ? String(a.retorno_12m) : '',
       preco_teto: a.preco_teto != null ? String(a.preco_teto) : '',
-      taxa_indexador: a.taxa_indexador ?? '',
-      tipo_juros: a.tipo_juros ?? '',
+      indexador: a.indexador ?? '',
       amortizacao: a.amortizacao ?? '',
+      juros: a.juros ?? '',
       data_liquidacao: a.data_liquidacao ?? '',
-      data_vencimento: a.data_vencimento ?? '',
       saldo_devedor: a.saldo_devedor != null ? String(a.saldo_devedor) : '',
     })
 
@@ -219,11 +226,10 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
       liquidez: form.liquidez || null,
       retorno_12m: form.retorno_12m ? parseFloat(form.retorno_12m) : null,
       preco_teto: form.preco_teto ? parseFloat(form.preco_teto) : null,
-      taxa_indexador: form.taxa_indexador || null,
-      tipo_juros: form.tipo_juros || null,
+      indexador: form.indexador || null,
       amortizacao: form.amortizacao || null,
+      juros: form.juros || null,
       data_liquidacao: form.data_liquidacao || null,
-      data_vencimento: form.data_vencimento || null,
       saldo_devedor: form.saldo_devedor ? parseFloat(form.saldo_devedor) : null,
     }
 
@@ -257,11 +263,10 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
       { header: 'Liquidez', width: 12, value: (a) => a.liquidez },
       { header: 'Retorno 12m (%)', width: 16, value: (a) => a.retorno_12m },
       { header: 'Preco-teto', width: 14, value: (a) => a.preco_teto },
-      { header: 'Taxa / Indexador', width: 20, value: (a) => a.taxa_indexador },
-      { header: 'Tipo de Juros', width: 14, value: (a) => a.tipo_juros },
+      { header: 'Indexador', width: 20, value: (a) => a.indexador },
       { header: 'Amortizacao', width: 16, value: (a) => a.amortizacao },
+      { header: 'Juros', width: 14, value: (a) => a.juros },
       { header: 'Data de Liquidacao', width: 18, value: (a) => (a.data_liquidacao ? formatDate(a.data_liquidacao) : '') },
-      { header: 'Data de Vencimento', width: 18, value: (a) => (a.data_vencimento ? formatDate(a.data_vencimento) : '') },
       { header: 'Saldo devedor', width: 16, value: (a) => a.saldo_devedor },
     ], ativos)
   }
@@ -416,26 +421,29 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
             <div className="pt-4 border-t border-slate-200">
               <p className="text-sm font-semibold text-slate-900 mb-3">Renda Fixa</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  id="rf-taxa"
-                  label="Taxa / Indexador"
-                  value={form.taxa_indexador}
-                  onChange={(e) => updateForm('taxa_indexador', e.target.value)}
-                  placeholder="Ex: 126% do CDI"
+                <Select
+                  id="rf-indexador"
+                  label="Indexador"
+                  options={INDEXADOR_OPTIONS}
+                  placeholder="Selecione..."
+                  value={form.indexador}
+                  onChange={(e) => updateForm('indexador', e.target.value)}
+                />
+                <Select
+                  id="rf-amortizacao"
+                  label="Amortizacao"
+                  options={PERIODICIDADE_OPTIONS}
+                  placeholder="Selecione..."
+                  value={form.amortizacao}
+                  onChange={(e) => updateForm('amortizacao', e.target.value)}
                 />
                 <Select
                   id="rf-juros"
-                  label="Tipo de Juros"
-                  options={TIPO_JUROS_OPTIONS}
+                  label="Juros"
+                  options={PERIODICIDADE_OPTIONS}
                   placeholder="Selecione..."
-                  value={form.tipo_juros}
-                  onChange={(e) => updateForm('tipo_juros', e.target.value)}
-                />
-                <Input
-                  id="rf-amortizacao"
-                  label="Amortizacao"
-                  value={form.amortizacao}
-                  onChange={(e) => updateForm('amortizacao', e.target.value)}
+                  value={form.juros}
+                  onChange={(e) => updateForm('juros', e.target.value)}
                 />
                 <Input
                   id="rf-saldo"
@@ -451,13 +459,6 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
                   type="date"
                   value={form.data_liquidacao}
                   onChange={(e) => updateForm('data_liquidacao', e.target.value)}
-                />
-                <Input
-                  id="rf-vencimento"
-                  label="Data de Vencimento"
-                  type="date"
-                  value={form.data_vencimento}
-                  onChange={(e) => updateForm('data_vencimento', e.target.value)}
                 />
               </div>
             </div>

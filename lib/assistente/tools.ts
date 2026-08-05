@@ -188,7 +188,11 @@ interface AtivoRow {
   status: string
   cotacao_atual: number | null
   saldo_devedor: number | null
+  taxa: number | null
   data_vencimento: string | null
+  indexador: string | null
+  amortizacao: string | null
+  juros: string | null
   classes_ativo: { nome: string } | null
   carteiras: { nome: string } | null
   estrategias: { nome: string } | null
@@ -199,7 +203,7 @@ async function consultarInvestimentos(supabase: SupabaseClient) {
     supabase
       .from('ativos')
       .select(
-        'id, ticker, nome, status, cotacao_atual, saldo_devedor, data_vencimento, classes_ativo(nome), carteiras(nome), estrategias(nome)'
+        'id, ticker, nome, status, cotacao_atual, saldo_devedor, taxa, data_vencimento, indexador, amortizacao, juros, classes_ativo(nome), carteiras(nome), estrategias(nome)'
       ),
     supabase.from('movimentacoes_ativos').select('ativo_id, tipo_evento, quantidade, valor_liquido'),
   ])
@@ -258,7 +262,11 @@ async function consultarInvestimentos(supabase: SupabaseClient) {
         valor_mercado: Math.round(p.pos.valorMercado * 100) / 100,
         proventos: Math.round(p.pos.proventos * 100) / 100,
         rentabilidade_percentual: Math.round(p.pos.rentabilidade * 10000) / 100,
+        taxa_percentual: p.ativo.taxa,
         data_vencimento: p.ativo.data_vencimento,
+        indexador: p.ativo.indexador,
+        amortizacao: p.ativo.amortizacao,
+        juros: p.ativo.juros,
       })),
     aviso_cotacao:
       semCotacao > 0

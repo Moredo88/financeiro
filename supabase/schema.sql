@@ -259,12 +259,17 @@ CREATE TABLE ativos (
   cotacao_atual numeric(14,4),
   cotacao_atualizada_em timestamptz,
 
-  -- Especificos de Renda Fixa
-  taxa_indexador text,
-  tipo_juros text CHECK (tipo_juros IN ('Pre', 'Pos', 'Hibrido')),
-  amortizacao text,
-  data_liquidacao date,
+  -- Cadastro (tela Ativos)
+  taxa numeric(8,4),
   data_vencimento date,
+
+  -- Especificos de Renda Fixa (tela Parametros)
+  indexador text CHECK (indexador IN (
+    'PRÉ-FIX', 'PÓS-FIX (CDI)', 'IPCA (INFLAÇÃO)', 'SEM RETORNO', 'VARIÁVEL', 'DÓLAR'
+  )),
+  amortizacao text CHECK (amortizacao IN ('Vencimento', 'Semestral', 'Mensal')),
+  juros text CHECK (juros IN ('Vencimento', 'Semestral', 'Mensal')),
+  data_liquidacao date,
   saldo_devedor numeric(14,2),
 
   created_by uuid REFERENCES auth.users,

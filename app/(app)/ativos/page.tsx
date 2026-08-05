@@ -30,6 +30,8 @@ interface Ativo {
   descricao: string | null
   data_aquisicao: string | null
   status: string
+  taxa: number | null
+  data_vencimento: string | null
   classes_ativo: { nome: string } | null
 }
 
@@ -52,6 +54,8 @@ const emptyForm = {
   descricao: '',
   data_aquisicao: '',
   status: 'Ativo',
+  taxa: '',
+  data_vencimento: '',
 }
 
 export default function AtivosPage() {
@@ -96,7 +100,7 @@ export default function AtivosPage() {
     setLoading(true)
     let query = supabase
       .from('ativos')
-      .select('id, ticker, nome, classe_id, categoria_id, segmento_id, banco_corretora_id, casa_analise_id, gestora_securitizadora, fonte_recomendacao, descricao, data_aquisicao, status, classes_ativo(nome)')
+      .select('id, ticker, nome, classe_id, categoria_id, segmento_id, banco_corretora_id, casa_analise_id, gestora_securitizadora, fonte_recomendacao, descricao, data_aquisicao, status, taxa, data_vencimento, classes_ativo(nome)')
       .order('ticker')
 
     if (busca.trim()) {
@@ -137,6 +141,8 @@ export default function AtivosPage() {
       descricao: a.descricao ?? '',
       data_aquisicao: a.data_aquisicao ?? '',
       status: a.status,
+      taxa: a.taxa != null ? String(a.taxa) : '',
+      data_vencimento: a.data_vencimento ?? '',
     })
     setModalOpen(true)
   }
@@ -158,6 +164,8 @@ export default function AtivosPage() {
       descricao: form.descricao || null,
       data_aquisicao: form.data_aquisicao || null,
       status: form.status,
+      taxa: form.taxa ? parseFloat(form.taxa) : null,
+      data_vencimento: form.data_vencimento || null,
     }
 
     if (editId) {
@@ -199,6 +207,8 @@ export default function AtivosPage() {
       { header: 'Gestora / Securitizadora', width: 24, value: (a) => a.gestora_securitizadora },
       { header: 'Fonte da Recomendacao', width: 24, value: (a) => a.fonte_recomendacao },
       { header: 'Data de Aquisicao', width: 16, value: (a) => (a.data_aquisicao ? formatDate(a.data_aquisicao) : '') },
+      { header: 'Taxa (%)', width: 12, value: (a) => a.taxa },
+      { header: 'Vencimento', width: 14, value: (a) => (a.data_vencimento ? formatDate(a.data_vencimento) : '') },
       { header: 'Status', width: 12, value: (a) => a.status },
       { header: 'Descricao', width: 40, value: (a) => a.descricao },
     ], ativos)
@@ -363,6 +373,22 @@ export default function AtivosPage() {
             type="date"
             value={form.data_aquisicao}
             onChange={(e) => updateForm('data_aquisicao', e.target.value)}
+          />
+          <Input
+            id="f-taxa"
+            label="Taxa (%)"
+            type="number"
+            step="0.0001"
+            value={form.taxa}
+            onChange={(e) => updateForm('taxa', e.target.value)}
+            placeholder="Ex: 12,5"
+          />
+          <Input
+            id="f-vencimento"
+            label="Vencimento"
+            type="date"
+            value={form.data_vencimento}
+            onChange={(e) => updateForm('data_vencimento', e.target.value)}
           />
           <Select
             id="f-status"
