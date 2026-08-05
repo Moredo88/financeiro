@@ -7,6 +7,9 @@ import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
+import { formatDate } from '@/lib/utils'
 import { Plus, Trash2, KeyRound } from 'lucide-react'
 
 interface User {
@@ -101,9 +104,18 @@ export default function UsuariosPage() {
     setPasswordModalOpen(false)
   }
 
+  async function handleExport() {
+    await exportToExcel('usuarios', 'Usuarios', [
+      { header: 'Email', width: 32, value: (u) => u.email },
+      { header: 'Role', width: 14, value: (u) => u.role },
+      { header: 'Criado em', width: 16, value: (u) => (u.created_at ? formatDate(u.created_at.slice(0, 10)) : '') },
+    ], users)
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <ExportButton onExport={handleExport} disabled={users.length === 0} />
         <Button onClick={() => setModalOpen(true)} size="sm">
           <Plus className="h-4 w-4" />
           Novo Usuario

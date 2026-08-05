@@ -7,6 +7,8 @@ import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import EmptyState from '@/components/ui/EmptyState'
 import Badge from '@/components/ui/Badge'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
 
 type Tab = 'categorias' | 'classes' | 'contas' | 'frequencias'
@@ -81,6 +83,14 @@ export default function ConfiguracoesPage() {
     loadItems()
   }
 
+  async function handleExport() {
+    const label = tabs.find((t) => t.key === activeTab)?.label ?? activeTab
+    await exportToExcel(activeTab, label, [
+      { header: 'Nome', width: 32, value: (i) => i.nome },
+      { header: 'Status', width: 12, value: (i) => (i.ativo ? 'Ativo' : 'Inativo') },
+    ], items)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
@@ -99,7 +109,8 @@ export default function ConfiguracoesPage() {
         ))}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <ExportButton onExport={handleExport} disabled={items.length === 0} />
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" />
           Novo

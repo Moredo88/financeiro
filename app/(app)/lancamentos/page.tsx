@@ -12,6 +12,8 @@ import Modal from '@/components/ui/Modal'
 import Textarea from '@/components/ui/Textarea'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface CadastroItem { id: string; nome: string }
@@ -130,13 +132,11 @@ export default function LancamentosPage() {
     loadCadastros()
   }, [])
 
-  const loadLancamentos = useCallback(async () => {
-    setLoading(true)
+  const buildFilteredQuery = useCallback(() => {
     let query = supabase
       .from('lancamentos')
       .select('*, categorias(nome), classes(nome), frequencias(nome), contas(nome)', { count: 'exact' })
       .order('data', { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
     if (filters.dataInicio) query = query.gte('data', filters.dataInicio)
     if (filters.dataFim) query = query.lte('data', filters.dataFim)
@@ -146,11 +146,37 @@ export default function LancamentosPage() {
     if (filters.frequencia_id.length > 0) query = query.in('frequencia_id', filters.frequencia_id)
     if (filters.status.length > 0) query = query.in('status', filters.status)
 
-    const { data, count } = await query
+    return query
+  }, [filters])
+
+  const loadLancamentos = useCallback(async () => {
+    setLoading(true)
+    const { data, count } = await buildFilteredQuery()
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
     setLancamentos((data as Lancamento[]) ?? [])
     setTotal(count ?? 0)
     setLoading(false)
-  }, [page, filters])
+  }, [page, buildFilteredQuery])
+
+  async function handleExport() {
+    // Exporta todos os registros que passam pelos filtros, nao apenas a pagina atual.
+    const { data } = await buildFilteredQuery()
+    const rows = (data as Lancamento[]) ?? []
+
+    await exportToExcel('lancamentos', 'Lancamentos', [
+      { header: 'Data', width: 12, value: (l) => formatDate(l.data) },
+      { header: 'Valor', width: 14, value: (l) => l.valor },
+      { header: 'Descricao', width: 40, value: (l) => l.descricao },
+      { header: 'Categoria', width: 20, value: (l) => l.categorias?.nome },
+      { header: 'Classe', width: 16, value: (l) => l.classes?.nome },
+      { header: 'Frequencia', width: 16, value: (l) => l.frequencias?.nome },
+      { header: 'Conta', width: 16, value: (l) => l.contas?.nome },
+      { header: 'Status', width: 12, value: (l) => (l.status === 'R' ? 'Realizado' : 'Previsto') },
+      { header: 'Parcial', width: 14, value: (l) => l.parcial },
+      { header: 'Reembolso', width: 14, value: (l) => l.reembolso },
+      { header: 'Observacao', width: 40, value: (l) => l.observacao },
+    ], rows)
+  }
 
   useEffect(() => {
     loadLancamentos()
@@ -317,10 +343,13 @@ export default function LancamentosPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">{total} lancamento(s)</p>
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4" />
-          Novo Lancamento
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton onExport={handleExport} disabled={total === 0} />
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4" />
+            Novo Lancamento
+          </Button>
+        </div>
       </div>
 
       {/* Tabela */}

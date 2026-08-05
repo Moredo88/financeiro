@@ -10,6 +10,8 @@ import MultiSelect from '@/components/ui/MultiSelect'
 import Modal from '@/components/ui/Modal'
 import Textarea from '@/components/ui/Textarea'
 import EmptyState from '@/components/ui/EmptyState'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface LookupItem { id: string; nome: string }
@@ -93,13 +95,11 @@ export default function MovimentacoesPage() {
     loadLookups()
   }, [])
 
-  const loadMovimentacoes = useCallback(async () => {
-    setLoading(true)
+  const buildFilteredQuery = useCallback(() => {
     let query = supabase
       .from('movimentacoes_ativos')
       .select('*, ativos(ticker, nome, classes_ativo(nome)), bancos_corretoras(nome)', { count: 'exact' })
       .order('data_evento', { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
     if (filters.ativo_id.length > 0) query = query.in('ativo_id', filters.ativo_id)
     if (filters.tipo_evento.length > 0) query = query.in('tipo_evento', filters.tipo_evento)
@@ -107,11 +107,36 @@ export default function MovimentacoesPage() {
     if (filters.dataInicio) query = query.gte('data_evento', filters.dataInicio)
     if (filters.dataFim) query = query.lte('data_evento', filters.dataFim)
 
-    const { data, count } = await query
+    return query
+  }, [filters])
+
+  const loadMovimentacoes = useCallback(async () => {
+    setLoading(true)
+    const { data, count } = await buildFilteredQuery()
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
     setMovimentacoes((data as unknown as Movimentacao[]) ?? [])
     setTotal(count ?? 0)
     setLoading(false)
-  }, [page, filters])
+  }, [page, buildFilteredQuery])
+
+  async function handleExport() {
+    // Exporta todos os registros filtrados, nao apenas a pagina atual.
+    const { data } = await buildFilteredQuery()
+    const rows = (data as unknown as Movimentacao[]) ?? []
+
+    await exportToExcel('movimentacoes', 'Movimentacoes', [
+      { header: 'Data', width: 12, value: (m) => formatDate(m.data_evento) },
+      { header: 'Ticker', width: 14, value: (m) => m.ativos?.ticker },
+      { header: 'Ativo', width: 28, value: (m) => m.ativos?.nome },
+      { header: 'Classe', width: 16, value: (m) => m.ativos?.classes_ativo?.nome },
+      { header: 'Tipo de Evento', width: 16, value: (m) => m.tipo_evento },
+      { header: 'Instituicao', width: 18, value: (m) => m.bancos_corretoras?.nome },
+      { header: 'Quantidade', width: 14, value: (m) => m.quantidade },
+      { header: 'Preco Unitario', width: 16, value: (m) => m.preco_unitario },
+      { header: 'Valor Liquido', width: 16, value: (m) => m.valor_liquido },
+      { header: 'Descricao', width: 40, value: (m) => m.descricao },
+    ], rows)
+  }
 
   useEffect(() => {
     loadMovimentacoes()
@@ -254,10 +279,13 @@ export default function MovimentacoesPage() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">{total} movimentacao(oes)</p>
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4" />
-          Nova Movimentacao
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton onExport={handleExport} disabled={total === 0} />
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4" />
+            Nova Movimentacao
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

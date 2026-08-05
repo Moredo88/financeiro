@@ -6,6 +6,8 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { calcularPosicoes, ehClasseRendaFixa, type AtivoCalc, type MovimentacaoCalc, type Posicao } from '@/lib/investimentos/posicao'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
 import { RefreshCw, Wallet, TrendingUp, Coins, AlertTriangle } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
@@ -169,12 +171,29 @@ export default function GestaoPage() {
     return d >= hoje && d <= em90dias
   })
 
+  async function handleExport() {
+    await exportToExcel('posicao_consolidada', 'Posicao Atual', [
+      { header: 'Ticker', width: 14, value: (p) => p.ativo.ticker },
+      { header: 'Nome', width: 28, value: (p) => p.ativo.nome },
+      { header: 'Classe', width: 18, value: (p) => p.ativo.classes_ativo?.nome },
+      { header: 'Corretora', width: 18, value: (p) => p.ativo.bancos_corretoras?.nome },
+      { header: 'Quantidade', width: 14, value: (p) => p.pos.quantidade },
+      { header: 'Preco Medio', width: 14, value: (p) => p.pos.precoMedio },
+      { header: 'Valor Investido', width: 16, value: (p) => p.pos.valorInvestido },
+      { header: 'Valor de Mercado', width: 16, value: (p) => p.pos.valorMercado },
+      { header: 'Proventos', width: 14, value: (p) => p.pos.proventos },
+      { header: 'Rentabilidade (%)', width: 16, value: (p) => Math.round(p.pos.rentabilidade * 10000) / 100 },
+      { header: '% do Patrimonio', width: 16, value: (p) => (patrimonioTotal > 0 ? Math.round((p.pos.valorMercado / patrimonioTotal) * 10000) / 100 : 0) },
+    ], posicoesAbertas)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">Visao consolidada da carteira de investimentos</p>
         <div className="flex items-center gap-3">
           {mensagemCotacao && <span className="text-xs text-slate-500">{mensagemCotacao}</span>}
+          <ExportButton onExport={handleExport} disabled={posicoesAbertas.length === 0} label="Exportar posicao" />
           <Button variant="outline" size="sm" onClick={handleAtualizarCotacoes} loading={atualizando}>
             <RefreshCw className="h-4 w-4" />
             Atualizar cotacoes

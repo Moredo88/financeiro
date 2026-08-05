@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import Input from '@/components/ui/Input'
 import MultiSelect from '@/components/ui/MultiSelect'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
 import {
   DollarSign,
   TrendingUp,
@@ -161,8 +163,27 @@ export default function DashboardPage() {
     { label: 'Lancamentos', value: qtd.toLocaleString('pt-BR'), icon: Hash, color: 'bg-purple-50 text-purple-600' },
   ]
 
+  async function handleExport() {
+    // Exporta os agregados que alimentam os graficos do dashboard.
+    const linhas = [
+      ...barData.map((d) => ({ grupo: 'Por Categoria', item: d.nome, valor: d.valor })),
+      ...pieData.map((d) => ({ grupo: 'Por Classe', item: d.nome, valor: d.valor })),
+      ...lineData.map((d) => ({ grupo: 'Evolucao Mensal', item: d.mes, valor: d.valor })),
+    ]
+
+    await exportToExcel('dashboard', 'Dashboard', [
+      { header: 'Agrupamento', width: 22, value: (l) => l.grupo },
+      { header: 'Item', width: 28, value: (l) => l.item },
+      { header: 'Valor', width: 16, value: (l) => l.valor },
+    ], linhas)
+  }
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportButton onExport={handleExport} disabled={lancamentos.length === 0} />
+      </div>
+
       {/* Filtros */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

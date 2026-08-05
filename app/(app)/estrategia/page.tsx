@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { calcularPosicoes, type AtivoCalc, type MovimentacaoCalc } from '@/lib/investimentos/posicao'
 import MultiSelect from '@/components/ui/MultiSelect'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -172,8 +174,34 @@ export default function EstrategiaPage() {
   })
   const recomendacaoData = Array.from(recomendacaoMap.entries()).map(([nome, qtd]) => ({ nome, qtd }))
 
+  async function handleExport() {
+    // Uma linha por ativo, com o detalhamento que alimenta os graficos.
+    await exportToExcel('estrategia', 'Estrategia', [
+      { header: 'Ticker', width: 14, value: (a) => a.ticker },
+      { header: 'Classe', width: 18, value: (a) => a.classes_ativo?.nome },
+      { header: 'Estrategia', width: 18, value: (a) => a.estrategias?.nome },
+      { header: 'Segmento', width: 24, value: (a) => a.segmentos?.nome },
+      { header: 'Casa de Analise', width: 20, value: (a) => a.casas_analise?.nome },
+      { header: 'Recomendacao', width: 16, value: (a) => a.recomendacao_atual },
+      { header: 'Valor Investido', width: 16, value: (a) => valorDe(a.id) },
+      { header: 'Alocacao Real (%)', width: 18, value: (a) => (totalCarteira > 0 ? Math.round((valorDe(a.id) / totalCarteira) * 10000) / 100 : 0) },
+      { header: 'Alocacao-alvo (%)', width: 18, value: (a) => a.alocacao_alvo },
+      { header: 'Aporte Planejado', width: 18, value: (a) => a.aporte_planejado },
+      { header: 'Aporte Realizado', width: 18, value: (a) => aportesRealizados.get(a.id) ?? 0 },
+      {
+        header: 'Tags',
+        width: 20,
+        value: (a) => ativoTags.filter((t) => t.ativo_id === a.id && t.tags_exposicao).map((t) => t.tags_exposicao!.nome).join(', '),
+      },
+    ], ativos)
+  }
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportButton onExport={handleExport} disabled={ativos.length === 0} />
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <MultiSelect

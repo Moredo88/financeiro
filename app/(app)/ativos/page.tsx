@@ -9,6 +9,9 @@ import Modal from '@/components/ui/Modal'
 import Textarea from '@/components/ui/Textarea'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
+import { formatDate } from '@/lib/utils'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 
 interface LookupItem { id: string; nome: string }
@@ -180,6 +183,27 @@ export default function AtivosPage() {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  function nomeDe(items: LookupItem[], id: string | null) {
+    return id ? items.find((i) => i.id === id)?.nome ?? '' : ''
+  }
+
+  async function handleExport() {
+    await exportToExcel('ativos', 'Ativos', [
+      { header: 'Ticker', width: 14, value: (a) => a.ticker },
+      { header: 'Nome', width: 28, value: (a) => a.nome },
+      { header: 'Classe', width: 18, value: (a) => a.classes_ativo?.nome },
+      { header: 'Categoria', width: 18, value: (a) => nomeDe(categorias, a.categoria_id) },
+      { header: 'Segmento', width: 24, value: (a) => nomeDe(segmentos, a.segmento_id) },
+      { header: 'Banco / Corretora', width: 20, value: (a) => nomeDe(bancos, a.banco_corretora_id) },
+      { header: 'Casa de Analise', width: 20, value: (a) => nomeDe(casasAnalise, a.casa_analise_id) },
+      { header: 'Gestora / Securitizadora', width: 24, value: (a) => a.gestora_securitizadora },
+      { header: 'Fonte da Recomendacao', width: 24, value: (a) => a.fonte_recomendacao },
+      { header: 'Data de Aquisicao', width: 16, value: (a) => (a.data_aquisicao ? formatDate(a.data_aquisicao) : '') },
+      { header: 'Status', width: 12, value: (a) => a.status },
+      { header: 'Descricao', width: 40, value: (a) => a.descricao },
+    ], ativos)
+  }
+
   const STATUS_BADGE: Record<string, string> = {
     Ativo: 'bg-green-100 text-green-700',
     Inativo: 'bg-slate-100 text-slate-500',
@@ -195,10 +219,13 @@ export default function AtivosPage() {
           onChange={(e) => setBusca(e.target.value)}
           className="max-w-xs"
         />
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4" />
-          Novo Ativo
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton onExport={handleExport} disabled={ativos.length === 0} />
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4" />
+            Novo Ativo
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

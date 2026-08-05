@@ -9,6 +9,9 @@ import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
 import EmptyState from '@/components/ui/EmptyState'
 import Badge from '@/components/ui/Badge'
+import ExportButton from '@/components/ui/ExportButton'
+import { exportToExcel } from '@/lib/export'
+import { formatDate } from '@/lib/utils'
 import { Pencil, Plus, ToggleLeft, ToggleRight } from 'lucide-react'
 
 interface LookupItem { id: string; nome: string }
@@ -241,8 +244,34 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
   const classeSelecionada = classes.find((c) => c.id === editAtivo?.classe_id)?.nome
   const ehRendaFixa = ehClasseRendaFixa(classeSelecionada)
 
+  async function handleExport() {
+    await exportToExcel('parametros_ativos', 'Parametros por Ativo', [
+      { header: 'Ticker', width: 14, value: (a) => a.ticker },
+      { header: 'Nome', width: 28, value: (a) => a.nome },
+      { header: 'Classe', width: 18, value: (a) => a.classes_ativo?.nome },
+      { header: 'Carteira', width: 16, value: (a) => a.carteiras?.nome },
+      { header: 'Estrategia', width: 16, value: (a) => a.estrategias?.nome },
+      { header: 'Alocacao-alvo (%)', width: 16, value: (a) => a.alocacao_alvo },
+      { header: 'Aporte planejado', width: 18, value: (a) => a.aporte_planejado },
+      { header: 'Recomendacao', width: 16, value: (a) => a.recomendacao_atual },
+      { header: 'Liquidez', width: 12, value: (a) => a.liquidez },
+      { header: 'Retorno 12m (%)', width: 16, value: (a) => a.retorno_12m },
+      { header: 'Preco-teto', width: 14, value: (a) => a.preco_teto },
+      { header: 'Taxa / Indexador', width: 20, value: (a) => a.taxa_indexador },
+      { header: 'Tipo de Juros', width: 14, value: (a) => a.tipo_juros },
+      { header: 'Amortizacao', width: 16, value: (a) => a.amortizacao },
+      { header: 'Data de Liquidacao', width: 18, value: (a) => (a.data_liquidacao ? formatDate(a.data_liquidacao) : '') },
+      { header: 'Data de Vencimento', width: 18, value: (a) => (a.data_vencimento ? formatDate(a.data_vencimento) : '') },
+      { header: 'Saldo devedor', width: 16, value: (a) => a.saldo_devedor },
+    ], ativos)
+  }
+
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <ExportButton onExport={handleExport} disabled={ativos.length === 0} />
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-sm text-slate-500">Carregando...</div>
@@ -501,9 +530,18 @@ function ListaLookup({ table, supabase }: { table: LookupTable; supabase: Return
     loadItems()
   }
 
+  async function handleExport() {
+    const label = SECTIONS.find((s) => s.key === table)?.label ?? table
+    await exportToExcel(table, label, [
+      { header: 'Nome', width: 32, value: (i) => i.nome },
+      { header: 'Status', width: 12, value: (i) => (i.ativo ? 'Ativo' : 'Inativo') },
+    ], items)
+  }
+
   return (
     <>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <ExportButton onExport={handleExport} disabled={items.length === 0} />
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" />
           Novo
