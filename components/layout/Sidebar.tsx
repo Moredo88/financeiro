@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Receipt,
   Settings,
+  Sparkles,
   Users,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Lancamentos', href: '/lancamentos', icon: Receipt },
+  { name: 'Assistente IA', href: '/assistente', icon: Sparkles },
   { name: 'Configuracoes', href: '/configuracoes', icon: Settings },
 ]
 
