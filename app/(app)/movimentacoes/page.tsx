@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import { useValores } from '@/components/ValoresProvider'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -80,6 +81,8 @@ export default function MovimentacoesPage() {
   const [form, setForm] = useState(emptyForm)
   const [valorManual, setValorManual] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  const { moeda } = useValores()
 
   const supabase = createClient()
 
@@ -319,10 +322,10 @@ export default function MovimentacoesPage() {
                     <td className="px-3 py-2.5 text-slate-600">{m.bancos_corretoras?.nome}</td>
                     <td className="px-3 py-2.5 text-right text-slate-700">{m.quantidade ?? '-'}</td>
                     <td className="px-3 py-2.5 text-right text-slate-700">
-                      {m.preco_unitario != null ? formatCurrency(m.preco_unitario) : '-'}
+                      {moeda(m.preco_unitario)}
                     </td>
                     <td className="px-3 py-2.5 text-right font-medium text-slate-900">
-                      {m.valor_liquido != null ? formatCurrency(m.valor_liquido) : '-'}
+                      {moeda(m.valor_liquido)}
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">

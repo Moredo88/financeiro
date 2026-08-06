@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import { useValores } from '@/components/ValoresProvider'
 import { calcularPosicoes, ehClasseRendaFixa, type AtivoCalc, type MovimentacaoCalc, type Posicao } from '@/lib/investimentos/posicao'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -39,6 +40,9 @@ export default function GestaoPage() {
   const [loading, setLoading] = useState(true)
   const [atualizando, setAtualizando] = useState(false)
   const [mensagemCotacao, setMensagemCotacao] = useState<string | null>(null)
+
+  const { oculto, moeda } = useValores()
+  const eixoValor = (v: number) => (oculto ? '' : `R$${(v / 1000).toFixed(0)}k`)
 
   const supabase = createClient()
 
@@ -206,10 +210,10 @@ export default function GestaoPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card icon={Wallet} label="Patrimonio Total" value={formatCurrency(patrimonioTotal)} color="bg-blue-50 text-blue-600" />
+            <Card icon={Wallet} label="Patrimonio Total" value={moeda(patrimonioTotal)} color="bg-blue-50 text-blue-600" />
             <Card icon={TrendingUp} label="Rentabilidade" value={`${rentabilidadeTotal.toFixed(2)}%`} color="bg-green-50 text-green-600" />
-            <Card icon={Coins} label="Proventos (12m)" value={formatCurrency(proventosMensaisData.reduce((s, p) => s + p.valor, 0))} color="bg-amber-50 text-amber-600" />
-            <Card icon={Coins} label="Yield mensal medio" value={formatCurrency(yieldMensal)} color="bg-purple-50 text-purple-600" />
+            <Card icon={Coins} label="Proventos (12m)" value={moeda(proventosMensaisData.reduce((s, p) => s + p.valor, 0))} color="bg-amber-50 text-amber-600" />
+            <Card icon={Coins} label="Yield mensal medio" value={moeda(yieldMensal)} color="bg-purple-50 text-purple-600" />
           </div>
 
           {(ativosInativos.length > 0 || concentracaoAlta.length > 0 || vencimentosProximos.length > 0) && (
@@ -262,9 +266,9 @@ export default function GestaoPage() {
                           <td className="px-3 py-2.5 font-medium text-slate-900">{p.ativo.ticker}</td>
                           <td className="px-3 py-2.5 text-slate-600">{p.ativo.classes_ativo?.nome}</td>
                           <td className="px-3 py-2.5 text-right text-slate-700">{p.pos.quantidade.toLocaleString('pt-BR')}</td>
-                          <td className="px-3 py-2.5 text-right text-slate-700">{formatCurrency(p.pos.precoMedio)}</td>
-                          <td className="px-3 py-2.5 text-right text-slate-700">{formatCurrency(p.pos.valorInvestido)}</td>
-                          <td className="px-3 py-2.5 text-right font-medium text-slate-900">{formatCurrency(p.pos.valorMercado)}</td>
+                          <td className="px-3 py-2.5 text-right text-slate-700">{moeda(p.pos.precoMedio)}</td>
+                          <td className="px-3 py-2.5 text-right text-slate-700">{moeda(p.pos.valorInvestido)}</td>
+                          <td className="px-3 py-2.5 text-right font-medium text-slate-900">{moeda(p.pos.valorMercado)}</td>
                           <td className={`px-3 py-2.5 text-right font-medium ${p.pos.rentabilidade >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {(p.pos.rentabilidade * 100).toFixed(2)}%
                           </td>
@@ -286,7 +290,7 @@ export default function GestaoPage() {
                       label={(props: any) => `${props.nome} ${((props.percent ?? 0) * 100).toFixed(0)}%`}>
                       {porClasseData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip formatter={(v: number) => moeda(v)} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : <p className="text-sm text-slate-400 text-center py-12">Sem dados</p>}
@@ -314,8 +318,8 @@ export default function GestaoPage() {
                   <BarChart data={proventosMensaisData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <YAxis tickFormatter={eixoValor} />
+                    <Tooltip formatter={(v: number) => moeda(v)} />
                     <Bar dataKey="valor" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -329,8 +333,8 @@ export default function GestaoPage() {
                   <LineChart data={evolucaoData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <YAxis tickFormatter={eixoValor} />
+                    <Tooltip formatter={(v: number) => moeda(v)} />
                     <Line type="monotone" dataKey="acumulado" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -358,7 +362,7 @@ export default function GestaoPage() {
                   ) : top5.map((p) => (
                     <tr key={p.ativo.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-3 py-2.5 font-medium text-slate-900">{p.ativo.ticker}</td>
-                      <td className="px-3 py-2.5 text-right text-slate-700">{formatCurrency(p.pos.valorMercado)}</td>
+                      <td className="px-3 py-2.5 text-right text-slate-700">{moeda(p.pos.valorMercado)}</td>
                       <td className="px-3 py-2.5 text-right text-slate-700">
                         {patrimonioTotal > 0 ? ((p.pos.valorMercado / patrimonioTotal) * 100).toFixed(1) : '0.0'}%
                       </td>
@@ -397,7 +401,7 @@ export default function GestaoPage() {
                           {proximo && <Badge className="ml-2 bg-amber-100 text-amber-700">Proximo</Badge>}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-700">
-                          {a.saldo_devedor != null ? formatCurrency(a.saldo_devedor) : '-'}
+                          {moeda(a.saldo_devedor)}
                         </td>
                       </tr>
                     )

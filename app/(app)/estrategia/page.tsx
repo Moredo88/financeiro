@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@/lib/utils'
+import { useValores } from '@/components/ValoresProvider'
 import { calcularPosicoes, type AtivoCalc, type MovimentacaoCalc } from '@/lib/investimentos/posicao'
 import MultiSelect from '@/components/ui/MultiSelect'
 import ExportButton from '@/components/ui/ExportButton'
@@ -65,6 +65,9 @@ export default function EstrategiaPage() {
     classe_id: [] as string[],
     banco_corretora_id: [] as string[],
   })
+
+  const { oculto, moeda } = useValores()
+  const eixoValor = (v: number) => (oculto ? '' : `R$${(v / 1000).toFixed(0)}k`)
 
   const supabase = createClient()
 
@@ -288,8 +291,8 @@ export default function EstrategiaPage() {
                 <BarChart data={aportesData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <YAxis tickFormatter={eixoValor} />
+                  <Tooltip formatter={(v: number) => moeda(v)} />
                   <Legend />
                   <Bar dataKey="planejado" name="Planejado" fill="#94a3b8" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="realizado" name="Realizado" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -317,6 +320,7 @@ function SemDados() {
 }
 
 function PizzaOuVazio({ data }: { data: { nome: string; valor: number }[] }) {
+  const { moeda } = useValores()
   if (data.length === 0) return <SemDados />
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -334,7 +338,7 @@ function PizzaOuVazio({ data }: { data: { nome: string; valor: number }[] }) {
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip formatter={(v: number) => moeda(v)} />
       </PieChart>
     </ResponsiveContainer>
   )

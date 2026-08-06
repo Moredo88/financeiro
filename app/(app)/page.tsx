@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@/lib/utils'
+import { useValores } from '@/components/ValoresProvider'
 import Input from '@/components/ui/Input'
 import MultiSelect from '@/components/ui/MultiSelect'
 import ExportButton from '@/components/ui/ExportButton'
@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [classes, setClasses] = useState<CadastroItem[]>([])
   const [contas, setContas] = useState<CadastroItem[]>([])
   const [loading, setLoading] = useState(true)
+  const { oculto, moeda } = useValores()
 
   const [filters, setFilters] = useState({
     dataInicio: '',
@@ -114,6 +115,9 @@ export default function DashboardPage() {
 
   const toOptions = (items: CadastroItem[]) => items.map((i) => ({ value: i.id, label: i.nome }))
 
+  // Eixos de valor ficam sem rotulo quando os valores estao ocultos.
+  const eixoValor = (v: number) => (oculto ? '' : `R$${(v / 1000).toFixed(0)}k`)
+
   // Calculos
   const totalGeral = lancamentos.reduce((s, l) => s + l.valor, 0)
   const totalRealizado = lancamentos.filter((l) => l.status === 'R').reduce((s, l) => s + l.valor, 0)
@@ -157,9 +161,9 @@ export default function DashboardPage() {
     .sort((a, b) => b.valor - a.valor)
 
   const cards = [
-    { label: 'Total Geral', value: formatCurrency(totalGeral), icon: DollarSign, color: 'bg-blue-50 text-blue-600' },
-    { label: 'Realizado', value: formatCurrency(totalRealizado), icon: TrendingUp, color: 'bg-green-50 text-green-600' },
-    { label: 'Previsto', value: formatCurrency(totalPrevisto), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
+    { label: 'Total Geral', value: moeda(totalGeral), icon: DollarSign, color: 'bg-blue-50 text-blue-600' },
+    { label: 'Realizado', value: moeda(totalRealizado), icon: TrendingUp, color: 'bg-green-50 text-green-600' },
+    { label: 'Previsto', value: moeda(totalPrevisto), icon: Clock, color: 'bg-yellow-50 text-yellow-600' },
     { label: 'Lancamentos', value: qtd.toLocaleString('pt-BR'), icon: Hash, color: 'bg-purple-50 text-purple-600' },
   ]
 
@@ -260,9 +264,9 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={barData} layout="vertical" margin={{ left: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                    <XAxis type="number" tickFormatter={eixoValor} />
                     <YAxis type="category" dataKey="nome" width={75} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip formatter={(v: number) => moeda(v)} />
                     <Bar dataKey="valor" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -290,7 +294,7 @@ export default function DashboardPage() {
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip formatter={(v: number) => moeda(v)} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -306,8 +310,8 @@ export default function DashboardPage() {
                   <LineChart data={lineData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <YAxis tickFormatter={eixoValor} />
+                    <Tooltip formatter={(v: number) => moeda(v)} />
                     <Legend />
                     <Line type="monotone" dataKey="valor" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>

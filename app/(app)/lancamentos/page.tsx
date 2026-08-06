@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { addDays, addWeeks, addMonths, addYears, format, parseISO } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatDate, STATUS_COLORS } from '@/lib/utils'
+import { formatDate, STATUS_COLORS } from '@/lib/utils'
+import { useValores } from '@/components/ValoresProvider'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -113,6 +114,8 @@ export default function LancamentosPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+
+  const { moeda } = useValores()
 
   const supabase = createClient()
 
@@ -379,7 +382,7 @@ export default function LancamentosPage() {
                   <tr key={l.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-3 py-2.5 text-slate-900 whitespace-nowrap">{formatDate(l.data)}</td>
                     <td className="px-3 py-2.5 text-right font-medium text-slate-900 whitespace-nowrap">
-                      {formatCurrency(l.valor)}
+                      {moeda(l.valor)}
                     </td>
                     <td className="px-3 py-2.5 text-slate-700 max-w-[200px] truncate">{l.descricao}</td>
                     <td className="px-3 py-2.5 text-slate-600">{l.categorias?.nome}</td>
