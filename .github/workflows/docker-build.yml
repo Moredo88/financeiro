@@ -37,3 +37,36 @@ jobs:
           build-args: |
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      # Avisa o Coolify que ha imagem nova. O repositorio e publico, entao a URL
+      # (que carrega o host e o uuid do recurso) vai em secret, nao em texto claro.
+      - name: Trigger Coolify deploy
+        env:
+          COOLIFY_DEPLOY_URL: ${{ secrets.COOLIFY_DEPLOY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_DEPLOY_URL" ]; then
+            echo "::error::secret COOLIFY_DEPLOY_URL nao configurado. A imagem foi publicada, mas o Coolify nao foi avisado."
+            exit 1
+          fi
+
+          # O token e opcional: a API v1 do Coolify exige Bearer, mas a webhook
+          # simples por recurso funciona sem.
+          if [ -n "$COOLIFY_TOKEN" ]; then
+            set -- -H "Authorization: Bearer $COOLIFY_TOKEN"
+          else
+            set --
+          fi
+
+          codigo=$(curl -sS -X POST "$COOLIFY_DEPLOY_URL" "$@" \
+                     -o resposta.json -w '%{http_code}' --max-time 60)
+
+          echo "Coolify respondeu HTTP $codigo"
+          cat resposta.json || true
+          echo
+
+          case "$codigo" in
+            2*) echo "Deploy disparado." ;;
+            *)  echo "::error::Coolify recusou o gatilho (HTTP $codigo). A imagem esta no GHCR, mas o site nao foi atualizado."
+                exit 1 ;;
+          esac
