@@ -4,10 +4,17 @@ import { usePathname } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { useValores } from '@/components/ValoresProvider'
 
+// Mesma ordem e mesmos nomes do Sidebar, para o cabecalho bater com o menu.
 const titles: Record<string, string> = {
   '/': 'Dashboard',
   '/lancamentos': 'Lancamentos',
+  '/assistente': 'Assistente IA',
   '/configuracoes': 'Configuracoes',
+  '/ativos': 'Ativos',
+  '/parametros': 'Parametros',
+  '/movimentacoes': 'Movimentacoes',
+  '/estrategia': 'Dashboard Estrategia',
+  '/gestao': 'Dashboard Gestao',
   '/admin/usuarios': 'Usuarios',
 }
 
