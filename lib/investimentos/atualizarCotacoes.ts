@@ -51,15 +51,21 @@ export async function atualizarCotacoes(): Promise<{ ok: boolean; atualizados: n
 
   if (!ativos || ativos.length === 0) return { ok: true, atualizados: 0 }
 
+  // O mesmo ticker pode estar cadastrado em mais de um ativo (custodia em
+  // corretoras diferentes, por exemplo). Cotamos cada ticker uma vez so —
+  // no plano gratuito cada repeticao custaria uma requisicao a toa — e o
+  // preco vai para todos os registros dele.
+  const tickersUnicos = [...new Set(ativos.map((a) => a.ticker))]
+
   const agora = new Date().toISOString()
   let atualizados = 0
   const falhas: string[] = []
 
   // Um lote por requisicao: nenhum plano da brapi aceita a carteira inteira
   // de uma vez. Um lote que falha nao derruba os outros.
-  for (let i = 0; i < ativos.length; i += TICKERS_POR_REQUISICAO) {
-    const lote = ativos.slice(i, i + TICKERS_POR_REQUISICAO)
-    const tickers = lote.map((a) => a.ticker).join(',')
+  for (let i = 0; i < tickersUnicos.length; i += TICKERS_POR_REQUISICAO) {
+    const lote = tickersUnicos.slice(i, i + TICKERS_POR_REQUISICAO)
+    const tickers = lote.join(',')
 
     const res = await fetch(`${BRAPI_URL}?symbols=${encodeURIComponent(tickers)}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -76,15 +82,17 @@ export async function atualizarCotacoes(): Promise<{ ok: boolean; atualizados: n
       const symbol = extractSymbol(entry)
       const preco = extractPrice(entry)
       if (!symbol || preco == null) continue
+      if (!lote.includes(symbol)) continue
 
-      const ativo = lote.find((a) => a.ticker === symbol)
-      if (!ativo) continue
-
-      await supabase
+      const { data: alterados } = await supabase
         .from('ativos')
         .update({ cotacao_atual: preco, cotacao_atualizada_em: agora })
-        .eq('id', ativo.id)
-      atualizados++
+        .eq('ticker', symbol)
+        .in('classe_id', classeIds)
+        .eq('status', 'Ativo')
+        .select('id')
+
+      atualizados += alterados?.length ?? 0
     }
   }
 

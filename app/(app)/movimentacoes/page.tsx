@@ -16,7 +16,7 @@ import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface LookupItem { id: string; nome: string }
-interface AtivoLookup { id: string; ticker: string; nome: string | null; classes_ativo: { nome: string } | null }
+interface AtivoLookup { id: string; ticker: string; nome: string | null; classes_ativo: { nome: string } | null; bancos_corretoras: { nome: string } | null }
 
 interface Movimentacao {
   id: string
@@ -89,7 +89,7 @@ export default function MovimentacoesPage() {
   useEffect(() => {
     async function loadLookups() {
       const [a, i] = await Promise.all([
-        supabase.from('ativos').select('id, ticker, nome, classes_ativo(nome)').order('ticker'),
+        supabase.from('ativos').select('id, ticker, nome, classes_ativo(nome), bancos_corretoras(nome)').order('ticker'),
         supabase.from('bancos_corretoras').select('id, nome').eq('ativo', true).order('nome'),
       ])
       setAtivos((a.data as unknown as AtivoLookup[]) ?? [])
@@ -149,7 +149,12 @@ export default function MovimentacoesPage() {
     return items.map((i) => ({ value: i.id, label: i.nome }))
   }
 
-  const ativoOptions = ativos.map((a) => ({ value: a.id, label: `${a.ticker}${a.nome ? ` - ${a.nome}` : ''}` }))
+  // A corretora entra no rotulo porque o mesmo ticker pode estar cadastrado
+  // mais de uma vez; sem ela as opcoes ficariam identicas na lista.
+  const ativoOptions = ativos.map((a) => ({
+    value: a.id,
+    label: `${a.ticker}${a.nome ? ` - ${a.nome}` : ''}${a.bancos_corretoras?.nome ? ` (${a.bancos_corretoras.nome})` : ''}`,
+  }))
 
   function openCreate() {
     setEditId(null)

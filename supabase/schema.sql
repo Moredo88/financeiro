@@ -234,7 +234,9 @@ CREATE TABLE ativos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Cadastro
-  ticker text NOT NULL UNIQUE,
+  -- ticker nao e unico: o mesmo papel em corretoras diferentes e um ativo
+  -- distinto (posicao, preco medio e parametros proprios).
+  ticker text NOT NULL,
   nome text,
   classe_id uuid REFERENCES classes_ativo(id),
   categoria_id uuid REFERENCES categorias_ativo(id),
@@ -280,6 +282,7 @@ CREATE TABLE ativos (
 ALTER TABLE ativos ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "auth_full_access" ON ativos FOR ALL USING (auth.uid() IS NOT NULL);
 
+CREATE INDEX idx_ativos_ticker ON ativos(ticker);
 CREATE INDEX idx_ativos_classe ON ativos(classe_id);
 CREATE INDEX idx_ativos_status ON ativos(status);
 CREATE INDEX idx_ativos_carteira ON ativos(carteira_id);

@@ -251,6 +251,7 @@ export default function AtivosPage() {
                   <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
                   <th className="px-3 py-3 text-left font-medium text-slate-600">Nome</th>
                   <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
+                  <th className="px-3 py-3 text-left font-medium text-slate-600">Corretora</th>
                   <th className="px-3 py-3 text-center font-medium text-slate-600">Status</th>
                   <th className="px-3 py-3 text-right font-medium text-slate-600 w-20">Acoes</th>
                 </tr>
@@ -261,6 +262,7 @@ export default function AtivosPage() {
                     <td className="px-3 py-2.5 font-medium text-slate-900">{a.ticker}</td>
                     <td className="px-3 py-2.5 text-slate-700">{a.nome}</td>
                     <td className="px-3 py-2.5 text-slate-600">{a.classes_ativo?.nome}</td>
+                    <td className="px-3 py-2.5 text-slate-600">{nomeDe(bancos, a.banco_corretora_id)}</td>
                     <td className="px-3 py-2.5 text-center">
                       <Badge className={STATUS_BADGE[a.status] ?? 'bg-slate-100 text-slate-600'}>
                         {a.status}
