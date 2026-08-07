@@ -1,7 +1,15 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const BRAPI_URL = 'https://brapi.dev/api/v2/stocks/quote'
-const CLASSES_COTADAS = ['Acao', 'FII', 'ETF']
+const CLASSES_COTADAS = ['RENDA VAR']
+
+// Quantos tickers cabem numa requisicao da brapi: 1 no plano gratuito,
+// 10 no Startup, 20 no Pro. Se um dia mudar de plano, basta ajustar a
+// variavel de ambiente no Coolify — nao precisa de deploy.
+const TICKERS_POR_REQUISICAO = (() => {
+  const n = Number(process.env.BRAPI_TICKERS_POR_REQUISICAO)
+  return Number.isInteger(n) && n > 0 ? n : 1
+})()
 
 interface BrapiResult {
   symbol?: string
@@ -43,32 +51,49 @@ export async function atualizarCotacoes(): Promise<{ ok: boolean; atualizados: n
 
   if (!ativos || ativos.length === 0) return { ok: true, atualizados: 0 }
 
-  const tickers = ativos.map((a) => a.ticker).join(',')
-  const res = await fetch(`${BRAPI_URL}?symbols=${encodeURIComponent(tickers)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-  if (!res.ok) {
-    return { ok: false, atualizados: 0, error: `brapi.dev respondeu ${res.status}` }
-  }
-
-  const json: { results?: BrapiResult[] } = await res.json()
   const agora = new Date().toISOString()
   let atualizados = 0
+  const falhas: string[] = []
 
-  for (const entry of json.results ?? []) {
-    const symbol = extractSymbol(entry)
-    const preco = extractPrice(entry)
-    if (!symbol || preco == null) continue
+  // Um lote por requisicao: nenhum plano da brapi aceita a carteira inteira
+  // de uma vez. Um lote que falha nao derruba os outros.
+  for (let i = 0; i < ativos.length; i += TICKERS_POR_REQUISICAO) {
+    const lote = ativos.slice(i, i + TICKERS_POR_REQUISICAO)
+    const tickers = lote.map((a) => a.ticker).join(',')
 
-    const ativo = ativos.find((a) => a.ticker === symbol)
-    if (!ativo) continue
+    const res = await fetch(`${BRAPI_URL}?symbols=${encodeURIComponent(tickers)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
 
-    await supabase
-      .from('ativos')
-      .update({ cotacao_atual: preco, cotacao_atualizada_em: agora })
-      .eq('id', ativo.id)
-    atualizados++
+    if (!res.ok) {
+      falhas.push(`${tickers} (HTTP ${res.status})`)
+      continue
+    }
+
+    const json: { results?: BrapiResult[] } = await res.json()
+
+    for (const entry of json.results ?? []) {
+      const symbol = extractSymbol(entry)
+      const preco = extractPrice(entry)
+      if (!symbol || preco == null) continue
+
+      const ativo = lote.find((a) => a.ticker === symbol)
+      if (!ativo) continue
+
+      await supabase
+        .from('ativos')
+        .update({ cotacao_atual: preco, cotacao_atualizada_em: agora })
+        .eq('id', ativo.id)
+      atualizados++
+    }
+  }
+
+  if (falhas.length > 0) {
+    return {
+      ok: false,
+      atualizados,
+      error: `${atualizados} cotacao(oes) atualizada(s); falhou em ${falhas.length}: ${falhas.slice(0, 3).join(', ')}`,
+    }
   }
 
   return { ok: true, atualizados }
