@@ -226,7 +226,6 @@ export default function AtivosPage() {
       { header: 'Fonte da Recomendacao', width: 24, value: (a) => a.fonte_recomendacao },
       { header: 'Data de Aquisicao', width: 16, value: (a) => (a.data_aquisicao ? formatDate(a.data_aquisicao) : '') },
       { header: 'Taxa (%)', width: 12, value: (a) => a.taxa },
-      { header: 'Indexador', width: 20, value: (a) => a.indexador },
       { header: 'Vencimento', width: 14, value: (a) => (a.data_vencimento ? formatDate(a.data_vencimento) : '') },
       { header: 'Status', width: 12, value: (a) => a.status },
       { header: 'Descricao', width: 40, value: (a) => a.descricao },
