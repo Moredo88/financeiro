@@ -51,8 +51,18 @@ export async function DELETE(
   const { id } = await params
   const supabaseAdmin = createAdminClient()
 
-  await supabaseAdmin.from('user_roles').delete().eq('user_id', id)
-  await supabaseAdmin.auth.admin.deleteUser(id)
+  const { error: erroRole } = await supabaseAdmin.from('user_roles').delete().eq('user_id', id)
+  if (erroRole) {
+    return Response.json({ error: erroRole.message }, { status: 400 })
+  }
+
+  // Lancamentos, ativos e movimentacoes guardam created_by apontando para
+  // auth.users, entao apagar quem ja registrou algo esbarra na FK. Sem devolver
+  // o erro, a tela dizia "excluido" e o usuario continuava na lista.
+  const { error: erroUser } = await supabaseAdmin.auth.admin.deleteUser(id)
+  if (erroUser) {
+    return Response.json({ error: erroUser.message }, { status: 400 })
+  }
 
   return Response.json({ success: true })
 }

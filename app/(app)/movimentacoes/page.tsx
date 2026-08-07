@@ -81,6 +81,8 @@ export default function MovimentacoesPage() {
   const [form, setForm] = useState(emptyForm)
   const [valorManual, setValorManual] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteErro, setDeleteErro] = useState<string | null>(null)
 
   const { moeda } = useValores()
 
@@ -236,7 +238,17 @@ export default function MovimentacoesPage() {
 
   async function handleDelete() {
     if (!deleteId) return
-    await supabase.from('movimentacoes_ativos').delete().eq('id', deleteId)
+    setDeleting(true)
+    setDeleteErro(null)
+
+    const { error } = await supabase.from('movimentacoes_ativos').delete().eq('id', deleteId)
+    setDeleting(false)
+
+    if (error) {
+      setDeleteErro(`Nao foi possivel excluir: ${error.message}`)
+      return
+    }
+
     setDeleteModalOpen(false)
     setDeleteId(null)
     loadMovimentacoes()
@@ -338,7 +350,7 @@ export default function MovimentacoesPage() {
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => { setDeleteId(m.id); setDeleteModalOpen(true) }}
+                          onClick={() => { setDeleteId(m.id); setDeleteErro(null); setDeleteModalOpen(true) }}
                           className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -462,14 +474,19 @@ export default function MovimentacoesPage() {
         title="Excluir Movimentacao"
         size="sm"
       >
-        <p className="text-sm text-slate-600 mb-6">
+        <p className="text-sm text-slate-600 mb-4">
           Tem certeza que deseja excluir esta movimentacao? Essa acao nao pode ser desfeita.
         </p>
+        {deleteErro && (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {deleteErro}
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>
             Cancelar
           </Button>
-          <Button variant="danger" onClick={handleDelete}>
+          <Button variant="danger" onClick={handleDelete} loading={deleting}>
             Excluir
           </Button>
         </div>

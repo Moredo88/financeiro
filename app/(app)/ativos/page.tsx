@@ -93,6 +93,8 @@ export default function AtivosPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteErro, setDeleteErro] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -199,10 +201,32 @@ export default function AtivosPage() {
 
   async function handleDelete() {
     if (!deleteId) return
-    await supabase.from('ativos').delete().eq('id', deleteId)
+    setDeleting(true)
+    setDeleteErro(null)
+
+    const { error } = await supabase.from('ativos').delete().eq('id', deleteId)
+    setDeleting(false)
+
+    // 23503 = foreign key violation. Acontece sempre que o ativo tem
+    // movimentacao: a FK de movimentacoes_ativos nao tem ON DELETE CASCADE.
+    if (error) {
+      setDeleteErro(
+        error.code === '23503'
+          ? 'Este ativo tem movimentacoes vinculadas. Exclua as movimentacoes dele na tela Movimentacoes e tente de novo.'
+          : `Nao foi possivel excluir: ${error.message}`
+      )
+      return
+    }
+
     setDeleteModalOpen(false)
     setDeleteId(null)
     loadAtivos()
+  }
+
+  function abrirExclusao(id: string) {
+    setDeleteId(id)
+    setDeleteErro(null)
+    setDeleteModalOpen(true)
   }
 
   function updateForm(field: string, value: string) {
@@ -271,7 +295,7 @@ export default function AtivosPage() {
             nomeCategoria={(id) => nomeDe(categorias, id)}
             nomeCorretora={(id) => nomeDe(bancos, id)}
             onEdit={openEdit}
-            onDelete={(id) => { setDeleteId(id); setDeleteModalOpen(true) }}
+            onDelete={abrirExclusao}
           />
           <QuadroAtivos
             titulo="Demais Investimentos"
@@ -281,7 +305,7 @@ export default function AtivosPage() {
             nomeCategoria={(id) => nomeDe(categorias, id)}
             nomeCorretora={(id) => nomeDe(bancos, id)}
             onEdit={openEdit}
-            onDelete={(id) => { setDeleteId(id); setDeleteModalOpen(true) }}
+            onDelete={abrirExclusao}
           />
         </>
       )}
@@ -418,14 +442,19 @@ export default function AtivosPage() {
         title="Excluir Ativo"
         size="sm"
       >
-        <p className="text-sm text-slate-600 mb-6">
+        <p className="text-sm text-slate-600 mb-4">
           Tem certeza que deseja excluir este ativo? As movimentacoes vinculadas tambem precisam ser removidas antes. Essa acao nao pode ser desfeita.
         </p>
+        {deleteErro && (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {deleteErro}
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>
             Cancelar
           </Button>
-          <Button variant="danger" onClick={handleDelete}>
+          <Button variant="danger" onClick={handleDelete} loading={deleting}>
             Excluir
           </Button>
         </div>

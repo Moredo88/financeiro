@@ -62,7 +62,12 @@ export default function UsuariosPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('Tem certeza que deseja excluir este usuario?')) return
-    await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: null }))
+      alert(`Nao foi possivel excluir: ${error ?? `erro ${res.status}`}`)
+      return
+    }
     loadUsers()
   }
 
