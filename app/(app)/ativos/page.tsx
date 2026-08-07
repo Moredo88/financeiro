@@ -41,6 +41,19 @@ const STATUS_OPTIONS = [
   { value: 'Liquidado', label: 'Liquidado' },
 ]
 
+const STATUS_BADGE: Record<string, string> = {
+  Ativo: 'bg-green-100 text-green-700',
+  Inativo: 'bg-slate-100 text-slate-500',
+  Liquidado: 'bg-red-100 text-red-700',
+}
+
+// A classe no cadastro e 'RENDA VAR'. Compara pelo prefixo para continuar
+// funcionando caso ela seja renomeada para 'RENDA VARIAVEL' em Parametros.
+function ehRendaVariavel(nome: string | null | undefined) {
+  if (!nome) return false
+  return nome.trim().toUpperCase().startsWith('RENDA VAR')
+}
+
 const emptyForm = {
   ticker: '',
   nome: '',
@@ -214,11 +227,8 @@ export default function AtivosPage() {
     ], ativos)
   }
 
-  const STATUS_BADGE: Record<string, string> = {
-    Ativo: 'bg-green-100 text-green-700',
-    Inativo: 'bg-slate-100 text-slate-500',
-    Liquidado: 'bg-red-100 text-red-700',
-  }
+  const rendaVariavel = ativos.filter((a) => ehRendaVariavel(a.classes_ativo?.nome))
+  const demais = ativos.filter((a) => !ehRendaVariavel(a.classes_ativo?.nome))
 
   return (
     <div className="space-y-6">
@@ -238,61 +248,37 @@ export default function AtivosPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-sm text-slate-500">Carregando...</div>
-        ) : ativos.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-sm text-slate-500">
+          Carregando...
+        </div>
+      ) : ativos.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <EmptyState title="Nenhum ativo cadastrado" description="Clique em Novo Ativo para adicionar." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Nome</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Corretora</th>
-                  <th className="px-3 py-3 text-center font-medium text-slate-600">Status</th>
-                  <th className="px-3 py-3 text-right font-medium text-slate-600 w-20">Acoes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ativos.map((a) => (
-                  <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-3 py-2.5 font-medium text-slate-900">{a.ticker}</td>
-                    <td className="px-3 py-2.5 text-slate-700">{a.nome}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{a.classes_ativo?.nome}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{nomeDe(bancos, a.banco_corretora_id)}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      <Badge className={STATUS_BADGE[a.status] ?? 'bg-slate-100 text-slate-600'}>
-                        {a.status}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => openEdit(a)}
-                          className="p-1 text-slate-400 hover:text-blue-600 cursor-pointer"
-                          title="Editar cadastro"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => { setDeleteId(a.id); setDeleteModalOpen(true) }}
-                          className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          <QuadroAtivos
+            titulo="Renda Variavel"
+            ativos={rendaVariavel}
+            vazio="Nenhum ativo de renda variavel"
+            mostrarCategoriaETaxa
+            nomeCategoria={(id) => nomeDe(categorias, id)}
+            nomeCorretora={(id) => nomeDe(bancos, id)}
+            onEdit={openEdit}
+            onDelete={(id) => { setDeleteId(id); setDeleteModalOpen(true) }}
+          />
+          <QuadroAtivos
+            titulo="Demais Investimentos"
+            ativos={demais}
+            vazio="Nenhum outro investimento cadastrado"
+            nomeCategoria={(id) => nomeDe(categorias, id)}
+            nomeCorretora={(id) => nomeDe(bancos, id)}
+            onEdit={openEdit}
+            onDelete={(id) => { setDeleteId(id); setDeleteModalOpen(true) }}
+          />
+        </>
+      )}
 
       <Modal
         open={modalOpen}
@@ -438,6 +424,102 @@ export default function AtivosPage() {
           </Button>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+function QuadroAtivos({
+  titulo,
+  ativos,
+  vazio,
+  mostrarCategoriaETaxa = false,
+  nomeCategoria,
+  nomeCorretora,
+  onEdit,
+  onDelete,
+}: {
+  titulo: string
+  ativos: Ativo[]
+  vazio: string
+  mostrarCategoriaETaxa?: boolean
+  nomeCategoria: (id: string | null) => string
+  nomeCorretora: (id: string | null) => string
+  onEdit: (a: Ativo) => void
+  onDelete: (id: string) => void
+}) {
+  const colunas = mostrarCategoriaETaxa ? 8 : 6
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-900">{titulo}</h3>
+        <span className="text-xs text-slate-500">{ativos.length} ativo(s)</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
+              <th className="px-3 py-3 text-left font-medium text-slate-600">Nome</th>
+              <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
+              {mostrarCategoriaETaxa && (
+                <th className="px-3 py-3 text-left font-medium text-slate-600">Categoria</th>
+              )}
+              <th className="px-3 py-3 text-left font-medium text-slate-600">Corretora</th>
+              {mostrarCategoriaETaxa && (
+                <th className="px-3 py-3 text-right font-medium text-slate-600">Taxa (%)</th>
+              )}
+              <th className="px-3 py-3 text-center font-medium text-slate-600">Status</th>
+              <th className="px-3 py-3 text-right font-medium text-slate-600 w-20">Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ativos.length === 0 ? (
+              <tr><td colSpan={colunas} className="px-3 py-8 text-center text-slate-400">{vazio}</td></tr>
+            ) : (
+              ativos.map((a) => (
+                <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2.5 font-medium text-slate-900">{a.ticker}</td>
+                  <td className="px-3 py-2.5 text-slate-700">{a.nome}</td>
+                  <td className="px-3 py-2.5 text-slate-600">{a.classes_ativo?.nome}</td>
+                  {mostrarCategoriaETaxa && (
+                    <td className="px-3 py-2.5 text-slate-600">{nomeCategoria(a.categoria_id)}</td>
+                  )}
+                  <td className="px-3 py-2.5 text-slate-600">{nomeCorretora(a.banco_corretora_id)}</td>
+                  {mostrarCategoriaETaxa && (
+                    <td className="px-3 py-2.5 text-right text-slate-700">
+                      {a.taxa != null ? a.taxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : ''}
+                    </td>
+                  )}
+                  <td className="px-3 py-2.5 text-center">
+                    <Badge className={STATUS_BADGE[a.status] ?? 'bg-slate-100 text-slate-600'}>
+                      {a.status}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => onEdit(a)}
+                        className="p-1 text-slate-400 hover:text-blue-600 cursor-pointer"
+                        title="Editar cadastro"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => onDelete(a.id)}
+                        className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
