@@ -31,9 +31,14 @@ interface Ativo {
   data_aquisicao: string | null
   status: string
   taxa: number | null
+  indexador: string | null
   data_vencimento: string | null
   classes_ativo: { nome: string } | null
 }
+
+// Colunas opcionais do quadro. Renda variavel e demais investimentos mostram
+// conjuntos diferentes, mas sempre nesta ordem de encaixe.
+type ColunaExtra = 'categoria' | 'taxa' | 'indexador'
 
 const STATUS_OPTIONS = [
   { value: 'Ativo', label: 'Ativo' },
@@ -113,7 +118,7 @@ export default function AtivosPage() {
     setLoading(true)
     let query = supabase
       .from('ativos')
-      .select('id, ticker, nome, classe_id, categoria_id, segmento_id, banco_corretora_id, casa_analise_id, gestora_securitizadora, fonte_recomendacao, descricao, data_aquisicao, status, taxa, data_vencimento, classes_ativo(nome)')
+      .select('id, ticker, nome, classe_id, categoria_id, segmento_id, banco_corretora_id, casa_analise_id, gestora_securitizadora, fonte_recomendacao, descricao, data_aquisicao, status, taxa, indexador, data_vencimento, classes_ativo(nome)')
       .order('ticker')
 
     if (busca.trim()) {
@@ -262,7 +267,7 @@ export default function AtivosPage() {
             titulo="Renda Variavel"
             ativos={rendaVariavel}
             vazio="Nenhum ativo de renda variavel"
-            mostrarCategoriaETaxa
+            extras={['categoria', 'taxa']}
             nomeCategoria={(id) => nomeDe(categorias, id)}
             nomeCorretora={(id) => nomeDe(bancos, id)}
             onEdit={openEdit}
@@ -272,6 +277,7 @@ export default function AtivosPage() {
             titulo="Demais Investimentos"
             ativos={demais}
             vazio="Nenhum outro investimento cadastrado"
+            extras={['taxa', 'indexador']}
             nomeCategoria={(id) => nomeDe(categorias, id)}
             nomeCorretora={(id) => nomeDe(bancos, id)}
             onEdit={openEdit}
@@ -432,7 +438,7 @@ function QuadroAtivos({
   titulo,
   ativos,
   vazio,
-  mostrarCategoriaETaxa = false,
+  extras = [],
   nomeCategoria,
   nomeCorretora,
   onEdit,
@@ -441,13 +447,14 @@ function QuadroAtivos({
   titulo: string
   ativos: Ativo[]
   vazio: string
-  mostrarCategoriaETaxa?: boolean
+  extras?: ColunaExtra[]
   nomeCategoria: (id: string | null) => string
   nomeCorretora: (id: string | null) => string
   onEdit: (a: Ativo) => void
   onDelete: (id: string) => void
 }) {
-  const colunas = mostrarCategoriaETaxa ? 8 : 6
+  const mostra = (c: ColunaExtra) => extras.includes(c)
+  const colunas = 6 + extras.length
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -462,12 +469,15 @@ function QuadroAtivos({
               <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
               <th className="px-3 py-3 text-left font-medium text-slate-600">Nome</th>
               <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
-              {mostrarCategoriaETaxa && (
+              {mostra('categoria') && (
                 <th className="px-3 py-3 text-left font-medium text-slate-600">Categoria</th>
               )}
               <th className="px-3 py-3 text-left font-medium text-slate-600">Corretora</th>
-              {mostrarCategoriaETaxa && (
+              {mostra('taxa') && (
                 <th className="px-3 py-3 text-right font-medium text-slate-600">Taxa (%)</th>
+              )}
+              {mostra('indexador') && (
+                <th className="px-3 py-3 text-left font-medium text-slate-600">Indexador</th>
               )}
               <th className="px-3 py-3 text-center font-medium text-slate-600">Status</th>
               <th className="px-3 py-3 text-right font-medium text-slate-600 w-20">Acoes</th>
@@ -482,14 +492,17 @@ function QuadroAtivos({
                   <td className="px-3 py-2.5 font-medium text-slate-900">{a.ticker}</td>
                   <td className="px-3 py-2.5 text-slate-700">{a.nome}</td>
                   <td className="px-3 py-2.5 text-slate-600">{a.classes_ativo?.nome}</td>
-                  {mostrarCategoriaETaxa && (
+                  {mostra('categoria') && (
                     <td className="px-3 py-2.5 text-slate-600">{nomeCategoria(a.categoria_id)}</td>
                   )}
                   <td className="px-3 py-2.5 text-slate-600">{nomeCorretora(a.banco_corretora_id)}</td>
-                  {mostrarCategoriaETaxa && (
-                    <td className="px-3 py-2.5 text-right text-slate-700">
+                  {mostra('taxa') && (
+                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">
                       {a.taxa != null ? a.taxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : ''}
                     </td>
+                  )}
+                  {mostra('indexador') && (
+                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{a.indexador}</td>
                   )}
                   <td className="px-3 py-2.5 text-center">
                     <Badge className={STATUS_BADGE[a.status] ?? 'bg-slate-100 text-slate-600'}>
