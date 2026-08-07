@@ -7,6 +7,8 @@ import { useValores } from '@/components/ValoresProvider'
 import { calcularPosicoes, ehClasseRendaFixa, type AtivoCalc, type MovimentacaoCalc, type Posicao } from '@/lib/investimentos/posicao'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import Input from '@/components/ui/Input'
+import MultiSelect from '@/components/ui/MultiSelect'
 import ExportButton from '@/components/ui/ExportButton'
 import { exportToExcel } from '@/lib/export'
 import { RefreshCw, Wallet, TrendingUp, Coins, AlertTriangle } from 'lucide-react'
@@ -28,8 +30,31 @@ interface AtivoRow {
   bancos_corretoras: { nome: string } | null
 }
 
+interface LookupItem { id: string; nome: string }
+interface AtivoOpcao { id: string; ticker: string; bancos_corretoras: { nome: string } | null }
+
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316']
 const LIMITE_CONCENTRACAO = 20
+
+const STATUS_OPTIONS = [
+  { value: 'Ativo', label: 'Ativo' },
+  { value: 'Inativo', label: 'Inativo' },
+  { value: 'Liquidado', label: 'Liquidado' },
+]
+
+const FILTROS_VAZIOS = {
+  id: [] as string[],
+  classe_id: [] as string[],
+  categoria_id: [] as string[],
+  segmento_id: [] as string[],
+  banco_corretora_id: [] as string[],
+  casa_analise_id: [] as string[],
+  carteira_id: [] as string[],
+  estrategia_id: [] as string[],
+  status: [] as string[],
+  vencimentoInicio: '',
+  vencimentoFim: '',
+}
 
 export default function GestaoPage() {
   const [ativos, setAtivos] = useState<AtivoRow[]>([])
@@ -41,17 +66,70 @@ export default function GestaoPage() {
   const [atualizando, setAtualizando] = useState(false)
   const [mensagemCotacao, setMensagemCotacao] = useState<string | null>(null)
 
+  const [filters, setFilters] = useState(FILTROS_VAZIOS)
+  const [totalAtivos, setTotalAtivos] = useState(0)
+
+  const [ativosOpcoes, setAtivosOpcoes] = useState<AtivoOpcao[]>([])
+  const [classes, setClasses] = useState<LookupItem[]>([])
+  const [categorias, setCategorias] = useState<LookupItem[]>([])
+  const [segmentos, setSegmentos] = useState<LookupItem[]>([])
+  const [bancos, setBancos] = useState<LookupItem[]>([])
+  const [casasAnalise, setCasasAnalise] = useState<LookupItem[]>([])
+  const [carteiras, setCarteiras] = useState<LookupItem[]>([])
+  const [estrategias, setEstrategias] = useState<LookupItem[]>([])
+
   const { oculto, moeda } = useValores()
   const eixoValor = (v: number) => (oculto ? '' : `R$${(v / 1000).toFixed(0)}k`)
 
   const supabase = createClient()
 
+  useEffect(() => {
+    async function loadLookups() {
+      const [at, cl, ca, sg, bc, cs, ct, es] = await Promise.all([
+        supabase.from('ativos').select('id, ticker, bancos_corretoras(nome)').order('ticker'),
+        supabase.from('classes_ativo').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('categorias_ativo').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('segmentos').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('bancos_corretoras').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('casas_analise').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('carteiras').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('estrategias').select('id, nome').eq('ativo', true).order('nome'),
+      ])
+      const opcoes = (at.data as unknown as AtivoOpcao[]) ?? []
+      setAtivosOpcoes(opcoes)
+      setTotalAtivos(opcoes.length)
+      setClasses(cl.data ?? [])
+      setCategorias(ca.data ?? [])
+      setSegmentos(sg.data ?? [])
+      setBancos(bc.data ?? [])
+      setCasasAnalise(cs.data ?? [])
+      setCarteiras(ct.data ?? [])
+      setEstrategias(es.data ?? [])
+    }
+    loadLookups()
+  }, [])
+
   const loadData = useCallback(async () => {
     setLoading(true)
+
+    let ativosQuery = supabase
+      .from('ativos')
+      .select('id, ticker, nome, status, banco_corretora_id, cotacao_atual, saldo_devedor, data_vencimento, classes_ativo(nome), bancos_corretoras(nome)')
+
+    if (filters.id.length > 0) ativosQuery = ativosQuery.in('id', filters.id)
+    if (filters.classe_id.length > 0) ativosQuery = ativosQuery.in('classe_id', filters.classe_id)
+    if (filters.categoria_id.length > 0) ativosQuery = ativosQuery.in('categoria_id', filters.categoria_id)
+    if (filters.segmento_id.length > 0) ativosQuery = ativosQuery.in('segmento_id', filters.segmento_id)
+    if (filters.banco_corretora_id.length > 0) ativosQuery = ativosQuery.in('banco_corretora_id', filters.banco_corretora_id)
+    if (filters.casa_analise_id.length > 0) ativosQuery = ativosQuery.in('casa_analise_id', filters.casa_analise_id)
+    if (filters.carteira_id.length > 0) ativosQuery = ativosQuery.in('carteira_id', filters.carteira_id)
+    if (filters.estrategia_id.length > 0) ativosQuery = ativosQuery.in('estrategia_id', filters.estrategia_id)
+    if (filters.status.length > 0) ativosQuery = ativosQuery.in('status', filters.status)
+    if (filters.vencimentoInicio) ativosQuery = ativosQuery.gte('data_vencimento', filters.vencimentoInicio)
+    if (filters.vencimentoFim) ativosQuery = ativosQuery.lte('data_vencimento', filters.vencimentoFim)
+
     const [ativosRes, movRes] = await Promise.all([
-      supabase
-        .from('ativos')
-        .select('id, ticker, nome, status, banco_corretora_id, cotacao_atual, saldo_devedor, data_vencimento, classes_ativo(nome), bancos_corretoras(nome)'),
+      ativosQuery,
       supabase
         .from('movimentacoes_ativos')
         .select('ativo_id, tipo_evento, data_evento, quantidade, valor_liquido'),
@@ -60,11 +138,18 @@ export default function GestaoPage() {
     setMovimentacoesCompletas(movRes.data ?? [])
     setMovimentacoes((movRes.data as MovimentacaoCalc[]) ?? [])
     setLoading(false)
-  }, [])
+  }, [filters])
 
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  function updateFilter(campo: string, valores: string[] | string) {
+    setFilters((prev) => ({ ...prev, [campo]: valores }))
+  }
+
+  const filtroAtivo =
+    Object.values(filters).some((v) => (Array.isArray(v) ? v.length > 0 : v !== ''))
 
   async function handleAtualizarCotacoes() {
     setAtualizando(true)
@@ -90,6 +175,12 @@ export default function GestaoPage() {
     saldo_devedor: a.saldo_devedor,
   }))
   const posicoes = calcularPosicoes(ativosCalc, movimentacoes)
+
+  // Os graficos temporais varrem as movimentacoes direto, entao precisam ser
+  // restringidos aos ativos que sobraram no filtro. O calculo de posicao nao
+  // precisa: calcularPosicao ja casa cada movimentacao com o ativo dela.
+  const idsFiltrados = new Set(ativos.map((a) => a.id))
+  const movimentacoesDosAtivos = movimentacoesCompletas.filter((m) => idsFiltrados.has(m.ativo_id))
 
   const posicoesAbertas = ativos
     .map((a) => ({ ativo: a, pos: posicoes.get(a.id) as Posicao }))
@@ -124,7 +215,7 @@ export default function GestaoPage() {
 
   // Proventos por mes (ultimos 12 meses)
   const proventosMensaisMap = new Map<string, number>()
-  movimentacoesCompletas.forEach((m) => {
+  movimentacoesDosAtivos.forEach((m) => {
     if (!['Dividendo', 'JCP', 'Rendimento', 'Cupom'].includes(m.tipo_evento)) return
     const chave = m.data_evento.slice(0, 7)
     proventosMensaisMap.set(chave, (proventosMensaisMap.get(chave) ?? 0) + (m.valor_liquido ?? 0))
@@ -140,7 +231,7 @@ export default function GestaoPage() {
 
   // Evolucao patrimonial (fluxo liquido de compras/vendas acumulado por mes)
   const fluxoMensalMap = new Map<string, number>()
-  movimentacoesCompletas.forEach((m) => {
+  movimentacoesDosAtivos.forEach((m) => {
     const chave = m.data_evento.slice(0, 7)
     const valor = m.valor_liquido ?? 0
     if (m.tipo_evento === 'Compra') fluxoMensalMap.set(chave, (fluxoMensalMap.get(chave) ?? 0) + valor)
@@ -191,8 +282,111 @@ export default function GestaoPage() {
     ], posicoesAbertas)
   }
 
+  const opcoes = (itens: LookupItem[]) => itens.map((i) => ({ value: i.id, label: i.nome }))
+
+  // A corretora entra no rotulo porque o mesmo ticker pode estar cadastrado
+  // mais de uma vez; sem ela as opcoes ficariam identicas na lista.
+  const ativoOpcoes = ativosOpcoes.map((a) => ({
+    value: a.id,
+    label: `${a.ticker}${a.bancos_corretoras?.nome ? ` (${a.bancos_corretoras.nome})` : ''}`,
+  }))
+
   return (
     <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <MultiSelect
+            label="Ativo"
+            options={ativoOpcoes}
+            placeholder="Todos"
+            values={filters.id}
+            onChange={(v) => updateFilter('id', v)}
+          />
+          <MultiSelect
+            label="Classe"
+            options={opcoes(classes)}
+            placeholder="Todas"
+            values={filters.classe_id}
+            onChange={(v) => updateFilter('classe_id', v)}
+          />
+          <MultiSelect
+            label="Categoria"
+            options={opcoes(categorias)}
+            placeholder="Todas"
+            values={filters.categoria_id}
+            onChange={(v) => updateFilter('categoria_id', v)}
+          />
+          <MultiSelect
+            label="Segmento"
+            options={opcoes(segmentos)}
+            placeholder="Todos"
+            values={filters.segmento_id}
+            onChange={(v) => updateFilter('segmento_id', v)}
+          />
+          <MultiSelect
+            label="Corretora"
+            options={opcoes(bancos)}
+            placeholder="Todas"
+            values={filters.banco_corretora_id}
+            onChange={(v) => updateFilter('banco_corretora_id', v)}
+          />
+          <MultiSelect
+            label="Casa de Analise"
+            options={opcoes(casasAnalise)}
+            placeholder="Todas"
+            values={filters.casa_analise_id}
+            onChange={(v) => updateFilter('casa_analise_id', v)}
+          />
+          <MultiSelect
+            label="Carteira"
+            options={opcoes(carteiras)}
+            placeholder="Todas"
+            values={filters.carteira_id}
+            onChange={(v) => updateFilter('carteira_id', v)}
+          />
+          <MultiSelect
+            label="Estrategia"
+            options={opcoes(estrategias)}
+            placeholder="Todas"
+            values={filters.estrategia_id}
+            onChange={(v) => updateFilter('estrategia_id', v)}
+          />
+          <MultiSelect
+            label="Status"
+            options={STATUS_OPTIONS}
+            placeholder="Todos"
+            values={filters.status}
+            onChange={(v) => updateFilter('status', v)}
+          />
+          <Input
+            type="date"
+            label="Vencimento de"
+            value={filters.vencimentoInicio}
+            onChange={(e) => updateFilter('vencimentoInicio', e.target.value)}
+          />
+          <Input
+            type="date"
+            label="Vencimento ate"
+            value={filters.vencimentoFim}
+            onChange={(e) => updateFilter('vencimentoFim', e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+          <p className="text-xs text-slate-500">
+            {ativos.length} de {totalAtivos} ativo(s)
+            {(filters.vencimentoInicio || filters.vencimentoFim) && (
+              <span className="text-amber-600"> · filtro de vencimento exclui ativos sem data</span>
+            )}
+          </p>
+          {filtroAtivo && (
+            <Button variant="secondary" size="sm" onClick={() => setFilters(FILTROS_VAZIOS)}>
+              Limpar filtros
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">Visao consolidada da carteira de investimentos</p>
         <div className="flex items-center gap-3">
