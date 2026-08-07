@@ -10,6 +10,7 @@ import Textarea from '@/components/ui/Textarea'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import ExportButton from '@/components/ui/ExportButton'
+import { Th, useOrdenacao, ordenarPor } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { formatDate } from '@/lib/utils'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
@@ -485,6 +486,23 @@ function QuadroAtivos({
   const mostra = (c: ColunaExtra) => extras.includes(c)
   const colunas = 6 + extras.length
 
+  // Cada quadro ordena por conta propria.
+  const { ordem, alternar } = useOrdenacao({ campo: 'ticker', direcao: 'asc' })
+
+  const linhas = ordenarPor(ativos, ordem, (a, campo) => {
+    switch (campo) {
+      case 'ticker': return a.ticker
+      case 'nome': return a.nome
+      case 'classe': return a.classes_ativo?.nome
+      case 'categoria': return nomeCategoria(a.categoria_id)
+      case 'corretora': return nomeCorretora(a.banco_corretora_id)
+      case 'taxa': return a.taxa
+      case 'indexador': return a.indexador
+      case 'status': return a.status
+      default: return null
+    }
+  })
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -495,28 +513,28 @@ function QuadroAtivos({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
-              <th className="px-3 py-3 text-left font-medium text-slate-600">Nome</th>
-              <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
+              <Th campo="ticker" ordem={ordem} aoOrdenar={alternar}>Ticker</Th>
+              <Th campo="nome" ordem={ordem} aoOrdenar={alternar}>Nome</Th>
+              <Th campo="classe" ordem={ordem} aoOrdenar={alternar}>Classe</Th>
               {mostra('categoria') && (
-                <th className="px-3 py-3 text-left font-medium text-slate-600">Categoria</th>
+                <Th campo="categoria" ordem={ordem} aoOrdenar={alternar}>Categoria</Th>
               )}
-              <th className="px-3 py-3 text-left font-medium text-slate-600">Corretora</th>
+              <Th campo="corretora" ordem={ordem} aoOrdenar={alternar}>Corretora</Th>
               {mostra('taxa') && (
-                <th className="px-3 py-3 text-right font-medium text-slate-600">Taxa (%)</th>
+                <Th campo="taxa" ordem={ordem} aoOrdenar={alternar} alinhamento="right">Taxa (%)</Th>
               )}
               {mostra('indexador') && (
-                <th className="px-3 py-3 text-left font-medium text-slate-600">Indexador</th>
+                <Th campo="indexador" ordem={ordem} aoOrdenar={alternar}>Indexador</Th>
               )}
-              <th className="px-3 py-3 text-center font-medium text-slate-600">Status</th>
+              <Th campo="status" ordem={ordem} aoOrdenar={alternar} alinhamento="center">Status</Th>
               <th className="px-3 py-3 text-right font-medium text-slate-600 w-20">Acoes</th>
             </tr>
           </thead>
           <tbody>
-            {ativos.length === 0 ? (
+            {linhas.length === 0 ? (
               <tr><td colSpan={colunas} className="px-3 py-8 text-center text-slate-400">{vazio}</td></tr>
             ) : (
-              ativos.map((a) => (
+              linhas.map((a) => (
                 <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-3 py-2.5 font-medium text-slate-900">{a.ticker}</td>
                   <td className="px-3 py-2.5 text-slate-700">{a.nome}</td>

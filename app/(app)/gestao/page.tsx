@@ -10,6 +10,7 @@ import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
 import MultiSelect from '@/components/ui/MultiSelect'
 import ExportButton from '@/components/ui/ExportButton'
+import { Th, useOrdenacao, ordenarPor } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { RefreshCw, Wallet, TrendingUp, Coins, AlertTriangle } from 'lucide-react'
 import {
@@ -282,6 +283,37 @@ export default function GestaoPage() {
     ], posicoesAbertas)
   }
 
+  // Uma ordenacao por tabela da tela.
+  const ordPosicoes = useOrdenacao({ campo: 'valorMercado', direcao: 'desc' })
+  const ordTop5 = useOrdenacao({ campo: 'valorMercado', direcao: 'desc' })
+  const ordVencimentos = useOrdenacao({ campo: 'vencimento', direcao: 'asc' })
+
+  const posicaoValor = (p: { ativo: AtivoRow; pos: Posicao }, campo: string) => {
+    switch (campo) {
+      case 'ticker': return p.ativo.ticker
+      case 'classe': return p.ativo.classes_ativo?.nome
+      case 'quantidade': return p.pos.quantidade
+      case 'precoMedio': return p.pos.precoMedio
+      case 'valorInvestido': return p.pos.valorInvestido
+      case 'valorMercado': return p.pos.valorMercado
+      case 'rentabilidade': return p.pos.rentabilidade
+      case 'pct': return p.pos.valorMercado
+      default: return null
+    }
+  }
+
+  const posicoesOrdenadas = ordenarPor(posicoesAbertas, ordPosicoes.ordem, posicaoValor)
+  const top5Ordenado = ordenarPor(top5, ordTop5.ordem, posicaoValor)
+  const vencimentosOrdenados = ordenarPor(vencimentosRF, ordVencimentos.ordem, (a, campo) => {
+    switch (campo) {
+      case 'ticker': return a.ticker
+      case 'nome': return a.nome
+      case 'vencimento': return a.data_vencimento
+      case 'saldoDevedor': return a.saldo_devedor
+      default: return null
+    }
+  })
+
   const opcoes = (itens: LookupItem[]) => itens.map((i) => ({ value: i.id, label: i.nome }))
 
   // A corretora entra no rotulo porque o mesmo ticker pode estar cadastrado
@@ -440,22 +472,20 @@ export default function GestaoPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
-                    <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">Quantidade</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">Preco Medio</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">Valor Investido</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">Valor de Mercado</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">Rentabilidade</th>
+                    <Th campo="ticker" ordem={ordPosicoes.ordem} aoOrdenar={ordPosicoes.alternar}>Ticker</Th>
+                    <Th campo="classe" ordem={ordPosicoes.ordem} aoOrdenar={ordPosicoes.alternar}>Classe</Th>
+                    <Th campo="quantidade" ordem={ordPosicoes.ordem} aoOrdenar={ordPosicoes.alternar} alinhamento="right">Quantidade</Th>
+                    <Th campo="precoMedio" ordem={ordPosicoes.ordem} aoOrdenar={ordPosicoes.alternar} alinhamento="right">Preco Medio</Th>
+                    <Th campo="valorInvestido" ordem={ordPosicoes.ordem} aoOrdenar={ordPosicoes.alternar} alinhamento="right">Valor Investido</Th>
+                    <Th campo="valorMercado" ordem={ordPosicoes.ordem} aoOrdenar={ordPosicoes.alternar} alinhamento="right">Valor de Mercado</Th>
+                    <Th campo="rentabilidade" ordem={ordPosicoes.ordem} aoOrdenar={ordPosicoes.alternar} alinhamento="right">Rentabilidade</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {posicoesAbertas.length === 0 ? (
                     <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-400">Sem posicoes abertas</td></tr>
                   ) : (
-                    posicoesAbertas
-                      .sort((a, b) => b.pos.valorMercado - a.pos.valorMercado)
-                      .map((p) => (
+                    posicoesOrdenadas.map((p) => (
                         <tr key={p.ativo.id} className="border-b border-slate-100 hover:bg-slate-50">
                           <td className="px-3 py-2.5 font-medium text-slate-900">{p.ativo.ticker}</td>
                           <td className="px-3 py-2.5 text-slate-600">{p.ativo.classes_ativo?.nome}</td>
@@ -545,15 +575,15 @@ export default function GestaoPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">Valor de Mercado</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">% do Patrimonio</th>
+                    <Th campo="ticker" ordem={ordTop5.ordem} aoOrdenar={ordTop5.alternar}>Ticker</Th>
+                    <Th campo="valorMercado" ordem={ordTop5.ordem} aoOrdenar={ordTop5.alternar} alinhamento="right">Valor de Mercado</Th>
+                    <Th campo="pct" ordem={ordTop5.ordem} aoOrdenar={ordTop5.alternar} alinhamento="right">% do Patrimonio</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {top5.length === 0 ? (
                     <tr><td colSpan={3} className="px-3 py-8 text-center text-slate-400">Sem posicoes</td></tr>
-                  ) : top5.map((p) => (
+                  ) : top5Ordenado.map((p) => (
                     <tr key={p.ativo.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-3 py-2.5 font-medium text-slate-900">{p.ativo.ticker}</td>
                       <td className="px-3 py-2.5 text-right text-slate-700">{moeda(p.pos.valorMercado)}</td>
@@ -575,16 +605,16 @@ export default function GestaoPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
-                    <th className="px-3 py-3 text-left font-medium text-slate-600">Nome</th>
-                    <th className="px-3 py-3 text-left font-medium text-slate-600">Vencimento</th>
-                    <th className="px-3 py-3 text-right font-medium text-slate-600">Saldo Devedor</th>
+                    <Th campo="ticker" ordem={ordVencimentos.ordem} aoOrdenar={ordVencimentos.alternar}>Ticker</Th>
+                    <Th campo="nome" ordem={ordVencimentos.ordem} aoOrdenar={ordVencimentos.alternar}>Nome</Th>
+                    <Th campo="vencimento" ordem={ordVencimentos.ordem} aoOrdenar={ordVencimentos.alternar}>Vencimento</Th>
+                    <Th campo="saldoDevedor" ordem={ordVencimentos.ordem} aoOrdenar={ordVencimentos.alternar} alinhamento="right">Saldo Devedor</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {vencimentosRF.length === 0 ? (
+                  {vencimentosOrdenados.length === 0 ? (
                     <tr><td colSpan={4} className="px-3 py-8 text-center text-slate-400">Nenhum titulo de Renda Fixa com vencimento cadastrado</td></tr>
-                  ) : vencimentosRF.map((a) => {
+                  ) : vencimentosOrdenados.map((a) => {
                     const proximo = vencimentosProximos.some((v) => v.id === a.id)
                     return (
                       <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">

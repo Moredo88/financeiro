@@ -14,6 +14,7 @@ import Textarea from '@/components/ui/Textarea'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import ExportButton from '@/components/ui/ExportButton'
+import { Th, useOrdenacao } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -45,6 +46,19 @@ const STATUS_OPTIONS = [
 ]
 
 const MAX_OCORRENCIAS_RECORRENCIA = 500
+
+// Campo da coluna -> expressao de ordenacao do PostgREST. As de tabela
+// relacionada usam a forma tabela(coluna), que ordena as linhas de cima.
+const COLUNA_ORDEM: Record<string, string> = {
+  data: 'data',
+  valor: 'valor',
+  descricao: 'descricao',
+  categoria: 'categorias(nome)',
+  classe: 'classes(nome)',
+  frequencia: 'frequencias(nome)',
+  conta: 'contas(nome)',
+  status: 'status',
+}
 
 const INCREMENTO_POR_FREQUENCIA: Record<string, (d: Date) => Date> = {
   Diario: (d) => addDays(d, 1),
@@ -117,6 +131,14 @@ export default function LancamentosPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteErro, setDeleteErro] = useState<string | null>(null)
 
+  const { ordem, alternar } = useOrdenacao({ campo: 'data', direcao: 'desc' })
+
+  // Trocar a ordem muda quem esta na primeira pagina, entao volta para ela.
+  function ordenarColuna(campo: string) {
+    setPage(0)
+    alternar(campo)
+  }
+
   const { moeda } = useValores()
 
   const supabase = createClient()
@@ -141,7 +163,10 @@ export default function LancamentosPage() {
     let query = supabase
       .from('lancamentos')
       .select('*, categorias(nome), classes(nome), frequencias(nome), contas(nome)', { count: 'exact' })
-      .order('data', { ascending: false })
+      // A lista e paginada no servidor, entao ordenar no cliente reordenaria so
+      // a pagina visivel. O PostgREST ordena as linhas de cima por coluna de
+      // tabela relacionada quando o vinculo e para-um, que e o caso aqui.
+      .order(COLUNA_ORDEM[ordem.campo] ?? 'data', { ascending: ordem.direcao === 'asc', nullsFirst: false })
 
     if (filters.dataInicio) query = query.gte('data', filters.dataInicio)
     if (filters.dataFim) query = query.lte('data', filters.dataFim)
@@ -152,7 +177,7 @@ export default function LancamentosPage() {
     if (filters.status.length > 0) query = query.in('status', filters.status)
 
     return query
-  }, [filters])
+  }, [filters, ordem])
 
   const loadLancamentos = useCallback(async () => {
     setLoading(true)
@@ -378,14 +403,14 @@ export default function LancamentosPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Data</th>
-                  <th className="px-3 py-3 text-right font-medium text-slate-600">Valor</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Descricao</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Categoria</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Frequencia</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Conta</th>
-                  <th className="px-3 py-3 text-center font-medium text-slate-600">Status</th>
+                  <Th campo="data" ordem={ordem} aoOrdenar={ordenarColuna}>Data</Th>
+                  <Th campo="valor" ordem={ordem} aoOrdenar={ordenarColuna} alinhamento="right">Valor</Th>
+                  <Th campo="descricao" ordem={ordem} aoOrdenar={ordenarColuna}>Descricao</Th>
+                  <Th campo="categoria" ordem={ordem} aoOrdenar={ordenarColuna}>Categoria</Th>
+                  <Th campo="classe" ordem={ordem} aoOrdenar={ordenarColuna}>Classe</Th>
+                  <Th campo="frequencia" ordem={ordem} aoOrdenar={ordenarColuna}>Frequencia</Th>
+                  <Th campo="conta" ordem={ordem} aoOrdenar={ordenarColuna}>Conta</Th>
+                  <Th campo="status" ordem={ordem} aoOrdenar={ordenarColuna} alinhamento="center">Status</Th>
                   <th className="px-3 py-3 text-right font-medium text-slate-600 w-24">Acoes</th>
                 </tr>
               </thead>

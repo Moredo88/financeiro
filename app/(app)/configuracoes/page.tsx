@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal'
 import EmptyState from '@/components/ui/EmptyState'
 import Badge from '@/components/ui/Badge'
 import ExportButton from '@/components/ui/ExportButton'
+import { Th, useOrdenacao, ordenarPor } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
 
@@ -34,6 +35,11 @@ export default function ConfiguracoesPage() {
   const [editItem, setEditItem] = useState<CadastroItem | null>(null)
   const [nome, setNome] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const { ordem, alternar } = useOrdenacao({ campo: 'nome', direcao: 'asc' })
+  const itensOrdenados = ordenarPor(items, ordem, (i, campo) =>
+    campo === 'status' ? (i.ativo ? 'Ativo' : 'Inativo') : i.nome
+  )
 
   const supabase = createClient()
 
@@ -126,13 +132,13 @@ export default function ConfiguracoesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-4 py-3 text-left font-medium text-slate-600">Nome</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600 w-28">Status</th>
+                <Th campo="nome" ordem={ordem} aoOrdenar={alternar} className="px-4">Nome</Th>
+                <Th campo="status" ordem={ordem} aoOrdenar={alternar} className="px-4 w-28">Status</Th>
                 <th className="px-4 py-3 text-right font-medium text-slate-600 w-32">Acoes</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {itensOrdenados.map((item) => (
                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-4 py-3 text-slate-900">{item.nome}</td>
                   <td className="px-4 py-3">

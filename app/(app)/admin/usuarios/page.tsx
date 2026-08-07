@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import ExportButton from '@/components/ui/ExportButton'
+import { Th, useOrdenacao, ordenarPor } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { formatDate } from '@/lib/utils'
 import { Plus, Trash2, KeyRound } from 'lucide-react'
@@ -33,6 +34,11 @@ export default function UsuariosPage() {
   const [newPassword, setNewPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
+
+  const { ordem, alternar } = useOrdenacao({ campo: 'email', direcao: 'asc' })
+  const usuariosOrdenados = ordenarPor(users, ordem, (u, campo) =>
+    campo === 'role' ? u.role : u.email
+  )
 
   async function loadUsers() {
     setLoading(true)
@@ -136,13 +142,13 @@ export default function UsuariosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-4 py-3 text-left font-medium text-slate-600">Email</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600 w-40">Role</th>
+                <Th campo="email" ordem={ordem} aoOrdenar={alternar} className="px-4">Email</Th>
+                <Th campo="role" ordem={ordem} aoOrdenar={alternar} className="px-4 w-40">Role</Th>
                 <th className="px-4 py-3 text-right font-medium text-slate-600 w-24">Acoes</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {usuariosOrdenados.map((u) => (
                 <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-4 py-3 text-slate-900">{u.email}</td>
                   <td className="px-4 py-3">

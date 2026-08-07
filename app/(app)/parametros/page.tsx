@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal'
 import EmptyState from '@/components/ui/EmptyState'
 import Badge from '@/components/ui/Badge'
 import ExportButton from '@/components/ui/ExportButton'
+import { Th, useOrdenacao, ordenarPor } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { formatDate } from '@/lib/utils'
 import { Pencil, Plus, ToggleLeft, ToggleRight } from 'lucide-react'
@@ -144,6 +145,19 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
   const [form, setForm] = useState(emptyForm)
   const [tagsSelecionadas, setTagsSelecionadas] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+
+  const { ordem, alternar } = useOrdenacao({ campo: 'ticker', direcao: 'asc' })
+  const ativosOrdenados = ordenarPor(ativos, ordem, (a, campo) => {
+    switch (campo) {
+      case 'ticker': return a.ticker
+      case 'nome': return a.nome
+      case 'classe': return a.classes_ativo?.nome
+      case 'carteira': return a.carteiras?.nome
+      case 'estrategia': return a.estrategias?.nome
+      case 'recomendacao': return a.recomendacao_atual
+      default: return null
+    }
+  })
 
   const loadAtivos = useCallback(async () => {
     setLoading(true)
@@ -287,17 +301,17 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Nome</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Classe</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Carteira</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Estrategia</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Recomendacao</th>
+                  <Th campo="ticker" ordem={ordem} aoOrdenar={alternar}>Ticker</Th>
+                  <Th campo="nome" ordem={ordem} aoOrdenar={alternar}>Nome</Th>
+                  <Th campo="classe" ordem={ordem} aoOrdenar={alternar}>Classe</Th>
+                  <Th campo="carteira" ordem={ordem} aoOrdenar={alternar}>Carteira</Th>
+                  <Th campo="estrategia" ordem={ordem} aoOrdenar={alternar}>Estrategia</Th>
+                  <Th campo="recomendacao" ordem={ordem} aoOrdenar={alternar}>Recomendacao</Th>
                   <th className="px-3 py-3 text-right font-medium text-slate-600 w-20">Acoes</th>
                 </tr>
               </thead>
               <tbody>
-                {ativos.map((a) => (
+                {ativosOrdenados.map((a) => (
                   <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-3 py-2.5 font-medium text-slate-900">{a.ticker}</td>
                     <td className="px-3 py-2.5 text-slate-700">{a.nome}</td>
@@ -488,6 +502,11 @@ function ListaLookup({ table, supabase }: { table: LookupTable; supabase: Return
   const [nome, setNome] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const { ordem, alternar } = useOrdenacao({ campo: 'nome', direcao: 'asc' })
+  const itensOrdenados = ordenarPor(items, ordem, (i, campo) =>
+    campo === 'status' ? (i.ativo ? 'Ativo' : 'Inativo') : i.nome
+  )
+
   const loadItems = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase.from(table).select('id, nome, ativo').order('nome')
@@ -558,13 +577,13 @@ function ListaLookup({ table, supabase }: { table: LookupTable; supabase: Return
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-4 py-3 text-left font-medium text-slate-600">Nome</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600 w-28">Status</th>
+                <Th campo="nome" ordem={ordem} aoOrdenar={alternar} className="px-4">Nome</Th>
+                <Th campo="status" ordem={ordem} aoOrdenar={alternar} className="px-4 w-28">Status</Th>
                 <th className="px-4 py-3 text-right font-medium text-slate-600 w-32">Acoes</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {itensOrdenados.map((item) => (
                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-4 py-3 text-slate-900">{item.nome}</td>
                   <td className="px-4 py-3">

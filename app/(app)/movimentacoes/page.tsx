@@ -12,6 +12,7 @@ import Modal from '@/components/ui/Modal'
 import Textarea from '@/components/ui/Textarea'
 import EmptyState from '@/components/ui/EmptyState'
 import ExportButton from '@/components/ui/ExportButton'
+import { Th, useOrdenacao } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -33,6 +34,18 @@ interface Movimentacao {
 }
 
 const PAGE_SIZE = 25
+
+// Campo da coluna -> expressao de ordenacao do PostgREST.
+const COLUNA_ORDEM: Record<string, string> = {
+  data: 'data_evento',
+  ticker: 'ativos(ticker)',
+  ativo: 'ativos(nome)',
+  tipo: 'tipo_evento',
+  instituicao: 'bancos_corretoras(nome)',
+  quantidade: 'quantidade',
+  precoUnitario: 'preco_unitario',
+  valorLiquido: 'valor_liquido',
+}
 
 const TIPO_EVENTO_OPTIONS = [
   { value: 'Compra', label: 'Compra' },
@@ -84,6 +97,14 @@ export default function MovimentacoesPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteErro, setDeleteErro] = useState<string | null>(null)
 
+  const { ordem, alternar } = useOrdenacao({ campo: 'data', direcao: 'desc' })
+
+  // Trocar a ordem muda quem esta na primeira pagina, entao volta para ela.
+  function ordenarColuna(campo: string) {
+    setPage(0)
+    alternar(campo)
+  }
+
   const { moeda } = useValores()
 
   const supabase = createClient()
@@ -104,7 +125,8 @@ export default function MovimentacoesPage() {
     let query = supabase
       .from('movimentacoes_ativos')
       .select('*, ativos(ticker, nome, classes_ativo(nome)), bancos_corretoras(nome)', { count: 'exact' })
-      .order('data_evento', { ascending: false })
+      // Paginado no servidor: ordenar no cliente reordenaria so a pagina atual.
+      .order(COLUNA_ORDEM[ordem.campo] ?? 'data_evento', { ascending: ordem.direcao === 'asc', nullsFirst: false })
 
     if (filters.ativo_id.length > 0) query = query.in('ativo_id', filters.ativo_id)
     if (filters.tipo_evento.length > 0) query = query.in('tipo_evento', filters.tipo_evento)
@@ -113,7 +135,7 @@ export default function MovimentacoesPage() {
     if (filters.dataFim) query = query.lte('data_evento', filters.dataFim)
 
     return query
-  }, [filters])
+  }, [filters, ordem])
 
   const loadMovimentacoes = useCallback(async () => {
     setLoading(true)
@@ -318,14 +340,14 @@ export default function MovimentacoesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Data</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Ticker</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Ativo</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Tipo</th>
-                  <th className="px-3 py-3 text-left font-medium text-slate-600">Instituicao</th>
-                  <th className="px-3 py-3 text-right font-medium text-slate-600">Quantidade</th>
-                  <th className="px-3 py-3 text-right font-medium text-slate-600">Preco Unit.</th>
-                  <th className="px-3 py-3 text-right font-medium text-slate-600">Valor Liquido</th>
+                  <Th campo="data" ordem={ordem} aoOrdenar={ordenarColuna}>Data</Th>
+                  <Th campo="ticker" ordem={ordem} aoOrdenar={ordenarColuna}>Ticker</Th>
+                  <Th campo="ativo" ordem={ordem} aoOrdenar={ordenarColuna}>Ativo</Th>
+                  <Th campo="tipo" ordem={ordem} aoOrdenar={ordenarColuna}>Tipo</Th>
+                  <Th campo="instituicao" ordem={ordem} aoOrdenar={ordenarColuna}>Instituicao</Th>
+                  <Th campo="quantidade" ordem={ordem} aoOrdenar={ordenarColuna} alinhamento="right">Quantidade</Th>
+                  <Th campo="precoUnitario" ordem={ordem} aoOrdenar={ordenarColuna} alinhamento="right">Preco Unit.</Th>
+                  <Th campo="valorLiquido" ordem={ordem} aoOrdenar={ordenarColuna} alinhamento="right">Valor Liquido</Th>
                   <th className="px-3 py-3 text-right font-medium text-slate-600 w-24">Acoes</th>
                 </tr>
               </thead>
