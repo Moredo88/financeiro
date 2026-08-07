@@ -16,6 +16,8 @@
 -- Rode no SQL Editor do Supabase. E idempotente.
 
 -- 1. Remove a constraint UNIQUE de ticker, seja qual for o nome dela.
+--    attname e do tipo `name`, nao `text` — sem o cast, a comparacao com
+--    ARRAY['ticker'] falha com "operator does not exist: name[] = text[]".
 DO $$
 DECLARE
   nome_constraint text;
@@ -29,7 +31,7 @@ BEGIN
       AND rel.relname = 'ativos'
       AND con.contype = 'u'
       AND (
-        SELECT array_agg(att.attname)
+        SELECT array_agg(att.attname::text)
         FROM unnest(con.conkey) AS k
         JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = k
       ) = ARRAY['ticker']
@@ -39,41 +41,13 @@ BEGIN
   END LOOP;
 END $$;
 
--- 2. Idem para um eventual indice unico avulso (criado fora de constraint).
-DO $$
-DECLARE
-  nome_indice text;
-BEGIN
-  FOR nome_indice IN
-    SELECT idx.relname
-    FROM pg_index i
-    JOIN pg_class idx ON idx.oid = i.indexrelid
-    JOIN pg_class tbl ON tbl.oid = i.indrelid
-    JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
-    WHERE ns.nspname = 'public'
-      AND tbl.relname = 'ativos'
-      AND i.indisunique
-      AND NOT i.indisprimary
-      AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = i.indexrelid)
-      AND (
-        SELECT array_agg(att.attname)
-        FROM unnest(i.indkey) AS k
-        JOIN pg_attribute att ON att.attrelid = i.indrelid AND att.attnum = k
-      ) = ARRAY['ticker']
-  LOOP
-    EXECUTE format('DROP INDEX public.%I', nome_indice);
-    RAISE NOTICE 'indice unico removido: %', nome_indice;
-  END LOOP;
-END $$;
-
--- 3. O indice da UNIQUE servia o ORDER BY ticker das telas. Reposta como
+-- 2. O indice da UNIQUE servia o ORDER BY ticker das telas. Reposto como
 --    indice comum, ja que a unicidade se foi.
 CREATE INDEX IF NOT EXISTS idx_ativos_ticker ON public.ativos(ticker);
 
 -- ============================================================
 -- Conferencia (deve devolver zero linhas)
 -- ============================================================
--- SELECT con.conname
+-- SELECT con.conname, pg_get_constraintdef(con.oid)
 -- FROM pg_constraint con
--- JOIN pg_class rel ON rel.oid = con.conrelid
--- WHERE rel.relname = 'ativos' AND con.contype = 'u';
+-- WHERE con.conrelid = 'public.ativos'::regclass AND con.contype = 'u';
