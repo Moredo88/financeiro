@@ -20,6 +20,7 @@ import {
   PieChart,
   BarChart3,
   CalendarCheck,
+  BookOpen,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -103,6 +104,8 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
       </nav>
 
       <div className="border-t border-slate-700 px-2 py-3 space-y-1">
+        {/* Fora dos grupos de trabalho: e ajuda, nao mais uma tela de dado. */}
+        {renderNavItem({ name: 'Manual do Usuario', href: '/manual', icon: BookOpen })}
         {!collapsed && userEmail && (
           <div className="px-3 py-1 text-xs text-slate-400 truncate">{userEmail}</div>
         )}
