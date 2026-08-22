@@ -10,6 +10,15 @@ export interface AtivoCalc {
   classe_nome: string | null
   cotacao_atual: number | null
   saldo_devedor: number | null
+  /**
+   * Saldo do ativo no ultimo fechamento mensal, quando houver.
+   *
+   * So e usado em renda fixa: la nao ha cotacao diaria, e o saldo do
+   * fechamento e a melhor informacao disponivel — bem melhor que o
+   * fallback antigo, que devolvia o proprio custo e zerava o rendimento.
+   * Em renda variavel a cotacao do dia continua valendo, por ser mais nova.
+   */
+  saldo_mensal?: number | null
 }
 
 export interface Posicao {
@@ -66,7 +75,7 @@ export function calcularPosicao(ativo: AtivoCalc, movimentacoes: MovimentacaoCal
   const valorInvestido = precoMedio * quantidade
   const ehRendaFixa = ehClasseRendaFixa(ativo.classe_nome)
   const valorMercado = ehRendaFixa
-    ? ativo.saldo_devedor ?? valorInvestido
+    ? ativo.saldo_mensal ?? ativo.saldo_devedor ?? valorInvestido
     : quantidade * (ativo.cotacao_atual ?? precoMedio)
   const rentabilidade = valorInvestido > 0 ? (valorMercado + proventos - valorInvestido) / valorInvestido : 0
 

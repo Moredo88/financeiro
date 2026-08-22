@@ -19,6 +19,7 @@ import {
   ArrowLeftRight,
   PieChart,
   BarChart3,
+  CalendarCheck,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -37,6 +38,7 @@ const investimentosNavigation = [
   { name: 'Ativos', href: '/ativos', icon: Landmark },
   { name: 'Parametros', href: '/parametros', icon: SlidersHorizontal },
   { name: 'Movimentacoes', href: '/movimentacoes', icon: ArrowLeftRight },
+  { name: 'Saldos Mensais', href: '/saldos', icon: CalendarCheck },
   { name: 'Dashboard Estrategia', href: '/estrategia', icon: PieChart },
   { name: 'Dashboard Gestao', href: '/gestao', icon: BarChart3 },
 ]

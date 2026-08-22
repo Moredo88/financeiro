@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import { useValores } from '@/components/ValoresProvider'
 import { calcularPosicoes, ehClasseRendaFixa, type AtivoCalc, type MovimentacaoCalc, type Posicao } from '@/lib/investimentos/posicao'
+import { resumirPorCompetencia, rotuloCompetencia, type SaldoMensalView } from '@/lib/investimentos/saldos'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
@@ -12,10 +13,10 @@ import MultiSelect from '@/components/ui/MultiSelect'
 import ExportButton from '@/components/ui/ExportButton'
 import { Th, useOrdenacao, ordenarPor } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
-import { RefreshCw, Wallet, TrendingUp, Coins, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Wallet, TrendingUp, Coins, AlertTriangle, LineChart as LineChartIcon } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 
 interface AtivoRow {
@@ -63,6 +64,7 @@ export default function GestaoPage() {
   const [movimentacoesCompletas, setMovimentacoesCompletas] = useState<
     { ativo_id: string; tipo_evento: string; data_evento: string; quantidade: number | null; valor_liquido: number | null }[]
   >([])
+  const [saldosMensais, setSaldosMensais] = useState<SaldoMensalView[]>([])
   const [loading, setLoading] = useState(true)
   const [atualizando, setAtualizando] = useState(false)
   const [mensagemCotacao, setMensagemCotacao] = useState<string | null>(null)
@@ -129,15 +131,19 @@ export default function GestaoPage() {
     if (filters.vencimentoInicio) ativosQuery = ativosQuery.gte('data_vencimento', filters.vencimentoInicio)
     if (filters.vencimentoFim) ativosQuery = ativosQuery.lte('data_vencimento', filters.vencimentoFim)
 
-    const [ativosRes, movRes] = await Promise.all([
+    const [ativosRes, movRes, saldosRes] = await Promise.all([
       ativosQuery,
       supabase
         .from('movimentacoes_ativos')
         .select('ativo_id, tipo_evento, data_evento, quantidade, valor_liquido'),
+      // A view ja traz saldo anterior e rendimento calculados. Vem inteira e
+      // e filtrada no cliente pelos mesmos ativos do filtro da tela.
+      supabase.from('v_saldos_mensais').select('*').order('competencia'),
     ])
     setAtivos((ativosRes.data as unknown as AtivoRow[]) ?? [])
     setMovimentacoesCompletas(movRes.data ?? [])
     setMovimentacoes((movRes.data as MovimentacaoCalc[]) ?? [])
+    setSaldosMensais((saldosRes.data as SaldoMensalView[]) ?? [])
     setLoading(false)
   }, [filters])
 
@@ -169,11 +175,17 @@ export default function GestaoPage() {
     }
   }
 
+  // Saldo do fechamento mais recente de cada ativo. A view vem ordenada por
+  // competencia, entao a ultima ocorrencia e a mais nova.
+  const ultimoSaldoPorAtivo = new Map<string, number>()
+  for (const s of saldosMensais) ultimoSaldoPorAtivo.set(s.ativo_id, s.saldo)
+
   const ativosCalc: AtivoCalc[] = ativos.map((a) => ({
     id: a.id,
     classe_nome: a.classes_ativo?.nome ?? null,
     cotacao_atual: a.cotacao_atual,
     saldo_devedor: a.saldo_devedor,
+    saldo_mensal: ultimoSaldoPorAtivo.get(a.id) ?? null,
   }))
   const posicoes = calcularPosicoes(ativosCalc, movimentacoes)
 
@@ -230,7 +242,22 @@ export default function GestaoPage() {
     ? proventosMensaisData.reduce((s, p) => s + p.valor, 0) / proventosMensaisData.length
     : 0
 
-  // Evolucao patrimonial (fluxo liquido de compras/vendas acumulado por mes)
+  // Historico real de patrimonio: sai dos fechamentos mensais, nao das
+  // cotacoes de hoje. Os mesmos filtros da tela valem aqui.
+  const saldosFiltrados = saldosMensais.filter((s) => idsFiltrados.has(s.ativo_id))
+  const serieMensal = resumirPorCompetencia(saldosFiltrados)
+  const ultimoMes = serieMensal[serieMensal.length - 1] ?? null
+  const rendimento12m = serieMensal.slice(-12).reduce((s, m) => s + m.rendimento, 0)
+  const patrimonioSerie = serieMensal.map((m) => ({
+    mes: m.rotulo,
+    patrimonio: Math.round(m.saldo * 100) / 100,
+    rendimento: Math.round(m.rendimento * 100) / 100,
+    acumulado: Math.round(m.rendimentoAcumulado * 100) / 100,
+  }))
+
+  // Aportes acumulados (fluxo liquido de compras/vendas por mes). Nao e
+  // patrimonio: nao tem rendimento dentro. Serve de contraponto a serie
+  // de fechamentos acima.
   const fluxoMensalMap = new Map<string, number>()
   movimentacoesDosAtivos.forEach((m) => {
     const chave = m.data_evento.slice(0, 7)
@@ -464,6 +491,121 @@ export default function GestaoPage() {
             </div>
           )}
 
+          {serieMensal.length === 0 ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+              <div className="flex items-center gap-2 font-medium mb-1">
+                <LineChartIcon className="h-4 w-4" />
+                Sem historico de saldos ainda
+              </div>
+              <p>
+                O patrimonio acima e o retrato de hoje. Para acompanhar rendimento mes a mes, registre o
+                fechamento do mes em <strong>Saldos Mensais</strong> — a serie historica comeca no primeiro
+                fechamento gravado.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card
+                  icon={Wallet}
+                  label={`Patrimonio em ${ultimoMes ? ultimoMes.rotulo : '-'}`}
+                  value={moeda(ultimoMes?.saldo ?? 0)}
+                  color="bg-blue-50 text-blue-600"
+                />
+                <Card
+                  icon={TrendingUp}
+                  label="Rendimento do ultimo mes"
+                  value={`${moeda(ultimoMes?.rendimento ?? 0)} (${((ultimoMes?.rentabilidade ?? 0) * 100).toFixed(2)}%)`}
+                  color={(ultimoMes?.rendimento ?? 0) >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}
+                />
+                <Card
+                  icon={TrendingUp}
+                  label={`Rendimento (${Math.min(serieMensal.length, 12)} meses)`}
+                  value={moeda(rendimento12m)}
+                  color={rendimento12m >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                  <h3 className="text-sm font-semibold text-slate-900">Evolucao do Patrimonio</h3>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Saldo consolidado no primeiro dia util de cada mes, mais o rendimento acumulado.
+                  </p>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={patrimonioSerie}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                      <YAxis tickFormatter={eixoValor} />
+                      <Tooltip formatter={(v: number) => moeda(v)} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Line type="monotone" dataKey="patrimonio" name="Patrimonio" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="acumulado" name="Rendimento acumulado" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                  <h3 className="text-sm font-semibold text-slate-900">Rendimento por Mes</h3>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Variacao do saldo ja descontados aportes e resgates do periodo.
+                  </p>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={patrimonioSerie}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                      <YAxis tickFormatter={eixoValor} />
+                      <Tooltip formatter={(v: number) => moeda(v)} />
+                      <Bar dataKey="rendimento" name="Rendimento" radius={[4, 4, 0, 0]}>
+                        {patrimonioSerie.map((m, i) => (
+                          <Cell key={i} fill={m.rendimento >= 0 ? '#10b981' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-200">
+                  <h3 className="text-sm font-semibold text-slate-900">Fechamentos mensais</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                        <th className="px-3 py-3 font-medium text-slate-600">Competencia</th>
+                        <th className="px-3 py-3 font-medium text-slate-600 text-right">Saldo</th>
+                        <th className="px-3 py-3 font-medium text-slate-600 text-right">Aportes</th>
+                        <th className="px-3 py-3 font-medium text-slate-600 text-right">Resgates</th>
+                        <th className="px-3 py-3 font-medium text-slate-600 text-right">Proventos</th>
+                        <th className="px-3 py-3 font-medium text-slate-600 text-right">Rendimento</th>
+                        <th className="px-3 py-3 font-medium text-slate-600 text-right">Rentabilidade</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...serieMensal].reverse().map((m) => (
+                        <tr key={m.competencia} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="px-3 py-2.5 font-medium text-slate-900">{rotuloCompetencia(m.competencia)}</td>
+                          <td className="px-3 py-2.5 text-right font-medium text-slate-900">{moeda(m.saldo)}</td>
+                          <td className="px-3 py-2.5 text-right text-slate-600">{moeda(m.aportes)}</td>
+                          <td className="px-3 py-2.5 text-right text-slate-600">{moeda(m.resgates)}</td>
+                          <td className="px-3 py-2.5 text-right text-slate-600">{moeda(m.proventos)}</td>
+                          <td className={`px-3 py-2.5 text-right font-medium ${m.rendimento >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {moeda(m.rendimento)}
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-medium ${m.rendimento >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(m.rentabilidade * 100).toFixed(2)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-200">
               <h3 className="text-sm font-semibold text-slate-900">Posicao atual por ativo</h3>
@@ -551,7 +693,10 @@ export default function GestaoPage() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Evolucao Patrimonial (fluxo acumulado)</h3>
+              <h3 className="text-sm font-semibold text-slate-900">Aportes acumulados (compras - vendas)</h3>
+              <p className="text-xs text-slate-400 mb-4">
+                Dinheiro colocado, sem rendimento. O patrimonio esta no quadro Evolucao do Patrimonio.
+              </p>
               {evolucaoData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={evolucaoData}>
