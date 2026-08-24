@@ -9,7 +9,7 @@ import Textarea from '@/components/ui/Textarea'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
-import { formatDate } from '@/lib/utils'
+import { formatDate, normalizarTexto } from '@/lib/utils'
 import {
   Plus,
   Search,
@@ -52,13 +52,6 @@ const ORDENS: { value: Ordenar; label: string }[] = [
 
 /** Recente = mexida nos ultimos 7 dias. */
 const DIAS_RECENTE = 7
-
-/**
- * Busca sem acento e sem caixa: "duvida" tem de achar "Duvida" e "Dúvida".
- * NFD separa a letra do acento, e a faixa U+0300-U+036F sao os acentos.
- */
-const normalizar = (t: string) =>
-  t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 export default function AnotacoesPage() {
   const [anotacoes, setAnotacoes] = useState<Anotacao[]>([])
@@ -145,7 +138,7 @@ export default function AnotacoesPage() {
 
   const visiveis = useMemo(() => {
     const limite = carregadoEm - DIAS_RECENTE * 24 * 60 * 60 * 1000
-    const termo = normalizar(busca.trim())
+    const termo = normalizarTexto(busca.trim())
 
     const filtradas = anotacoes.filter((a) => {
       // Arquivada so aparece no proprio filtro: senao a lista principal
@@ -160,7 +153,7 @@ export default function AnotacoesPage() {
       if (tagsFiltro.length && !a.tags.some((t) => tagsFiltro.includes(t))) return false
 
       if (termo) {
-        const alvo = normalizar([a.titulo, a.descricao, ...a.tags].join(' '))
+        const alvo = normalizarTexto([a.titulo, a.descricao, ...a.tags].join(' '))
         if (!alvo.includes(termo)) return false
       }
       return true

@@ -12,7 +12,7 @@ import { Th, useOrdenacao, ordenarPor } from '@/components/ui/Ordenacao'
 import { exportToExcel } from '@/lib/export'
 import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
 
-type Tab = 'categorias' | 'classes' | 'contas' | 'frequencias'
+type Tab = 'categorias' | 'classes' | 'contas' | 'frequencias' | 'areas_projeto'
 
 interface CadastroItem {
   id: string
@@ -25,6 +25,7 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'classes', label: 'Classes' },
   { key: 'contas', label: 'Contas' },
   { key: 'frequencias', label: 'Frequencias' },
+  { key: 'areas_projeto', label: 'Areas/Projetos' },
 ]
 
 export default function ConfiguracoesPage() {

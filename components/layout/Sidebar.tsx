@@ -22,6 +22,7 @@ import {
   BookOpen,
   GraduationCap,
   StickyNote,
+  Kanban,
   X,
 } from 'lucide-react'
 import { useSidebar } from './SidebarProvider'
@@ -259,6 +260,7 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
 
         <div className="space-y-1 border-t border-slate-700 px-2 py-3">
           {/* Fora dos grupos de trabalho: e ajuda, nao mais uma tela de dado. */}
+          {renderNavItem({ name: 'Acoes', href: '/acoes', icon: Kanban })}
           {renderNavItem({ name: 'Manual do Usuario', href: '/manual', icon: BookOpen })}
           {userEmail && (
             <div className={clsx('truncate px-3 py-1 text-xs text-slate-400', modoIcone && 'md:hidden')}>

@@ -18,6 +18,14 @@ export function formatMonthYear(date: string | Date): string {
   return format(d, 'MMM/yy', { locale: ptBR })
 }
 
+/**
+ * Busca sem acento e sem caixa: "duvida" tem de achar "Duvida" e "Dúvida".
+ * NFD separa a letra do acento, e a faixa U+0300-U+036F sao os acentos.
+ */
+export function normalizarTexto(t: string): string {
+  return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
 export const STATUS_OPTIONS = [
   { value: 'R', label: 'Realizado' },
   { value: 'P', label: 'Previsto' },

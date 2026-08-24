@@ -9,6 +9,7 @@ import { useSidebar } from '@/components/layout/SidebarProvider'
 const titles: Record<string, string> = {
   '/': 'Dashboard',
   '/anotacoes': 'Anotacoes',
+  '/acoes': 'Acoes',
   '/lancamentos': 'Lancamentos',
   '/assistente': 'Assistente IA',
   '/configuracoes': 'Configuracoes',
