@@ -64,7 +64,7 @@ const GRUPOS: NavGroup[] = [
     id: 'capacitacao',
     label: 'Capacitacao',
     items: [
-      { name: 'Plano de Trading', href: '/plano-trading.html', icon: GraduationCap, external: true },
+      { name: 'Plano de Trading', href: '/plano-trading', icon: GraduationCap },
     ],
   },
   {

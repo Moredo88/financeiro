@@ -21,6 +21,7 @@ const titles: Record<string, string> = {
   '/gestao': 'Dashboard Gestao',
   '/admin/usuarios': 'Usuarios',
   '/manual': 'Manual do Usuario',
+  '/plano-trading': 'Plano de Trading',
 }
 
 export default function Header() {
