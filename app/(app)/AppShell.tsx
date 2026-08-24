@@ -3,6 +3,7 @@
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import { ValoresProvider } from '@/components/ValoresProvider'
+import { SidebarProvider } from '@/components/layout/SidebarProvider'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -13,13 +14,15 @@ interface AppShellProps {
 export default function AppShell({ children, userRole, userEmail }: AppShellProps) {
   return (
     <ValoresProvider>
-      <div className="flex h-full">
-        <Sidebar userRole={userRole} userEmail={userEmail} />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Header />
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <SidebarProvider>
+        <div className="flex h-full">
+          <Sidebar userRole={userRole} userEmail={userEmail} />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <Header />
+            <main className="flex-1 overflow-y-auto p-6">{children}</main>
+          </div>
         </div>
-      </div>
+      </SidebarProvider>
     </ValoresProvider>
   )
 }
