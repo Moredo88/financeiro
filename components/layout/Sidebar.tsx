@@ -21,6 +21,7 @@ import {
   BarChart3,
   CalendarCheck,
   BookOpen,
+  GraduationCap,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -106,6 +107,16 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
       <div className="border-t border-slate-700 px-2 py-3 space-y-1">
         {/* Fora dos grupos de trabalho: e ajuda, nao mais uma tela de dado. */}
         {renderNavItem({ name: 'Manual do Usuario', href: '/manual', icon: BookOpen })}
+        <a
+          href="/plano-trading.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          title={collapsed ? 'Plano de Trading' : undefined}
+        >
+          <GraduationCap className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Plano de Trading</span>}
+        </a>
         {!collapsed && userEmail && (
           <div className="px-3 py-1 text-xs text-slate-400 truncate">{userEmail}</div>
         )}

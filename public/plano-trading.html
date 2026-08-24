@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Plano de Formação — Trading & Operações Estruturadas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0F14;
+    --surface:#12181F;
+    --surface2:#161D26;
+    --line:#232B35;
+    --text:#E6EAEE;
+    --muted:#8B97A5;
+    --up:#3ECF8E;
+    --up-dim:rgba(62,207,142,0.12);
+    --amber:#E8A33D;
+    --amber-dim:rgba(232,163,61,0.12);
+    --down:#E2564F;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:28px 20px 60px;}
+
+  /* Header / ticker */
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--up);
+    display:flex;align-items:center;gap:8px;
+  }
+  .eyebrow::before{content:"●";font-size:8px;}
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:clamp(24px,4vw,34px);
+    line-height:1.15;
+    margin:8px 0 6px;
+  }
+  .sub{color:var(--muted);font-size:14.5px;line-height:1.55;max-width:640px;}
+
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-top:22px;
+  }
+
+  /* Progress / equity curve */
+  .curve-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .curve-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+  .curve-value{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--up);}
+  svg#curve{width:100%;height:90px;display:block;}
+  .bar-track{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:10px;border:1px solid var(--line);}
+  .bar-fill{height:100%;background:linear-gradient(90deg,#2AA876,var(--up));width:0%;transition:width .35s ease;}
+  .stats-row{display:flex;gap:22px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+  .stats-row b{color:var(--text);}
+
+  /* Phase / week structure */
+  .phase{margin-top:34px;}
+  .phase-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--amber);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .phase-title::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  .week{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    margin-bottom:12px;
+    overflow:hidden;
+  }
+  .week-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:13px 16px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .week-head:hover{background:var(--surface2);}
+  .week-title{display:flex;align-items:baseline;gap:10px;}
+  .week-num{font-family:'IBM Plex Mono',monospace;color:var(--up);font-size:13px;}
+  .week-name{font-weight:600;font-size:14.5px;}
+  .week-meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:10px;}
+  .chevron{transition:transform .2s ease;color:var(--muted);}
+  .week.open .chevron{transform:rotate(90deg);}
+
+  .week-body{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .28s ease;
+    border-top:1px solid transparent;
+  }
+  .week.open .week-body{border-top-color:var(--line);}
+
+  .task-list{list-style:none;margin:0;padding:10px 16px 14px;}
+  .task{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    padding:8px 4px;
+    border-bottom:1px dashed var(--line);
+  }
+  .task:last-child{border-bottom:none;}
+  .task input{
+    margin-top:3px;
+    width:16px;height:16px;
+    accent-color:var(--up);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .task label{font-size:13.5px;line-height:1.5;cursor:pointer;}
+  .task label .day{font-family:'IBM Plex Mono',monospace;color:var(--muted);font-size:11px;margin-right:6px;}
+  .task.checked label{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line);}
+
+  .task.checkpoint{background:var(--amber-dim);border-radius:6px;border-bottom:none;margin-top:4px;padding:10px 10px;}
+  .task.checkpoint label .day{color:var(--amber);}
+  .task.checkpoint:not(.checked) input{accent-color:var(--amber);}
+
+  .resources{padding:0 16px 16px;}
+  .res-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 0 8px;}
+  .res-list{display:flex;flex-wrap:wrap;gap:8px;}
+  .res-list a{
+    font-size:12px;
+    color:var(--text);
+    background:var(--surface2);
+    border:1px solid var(--line);
+    padding:6px 10px;
+    border-radius:6px;
+    text-decoration:none;
+  }
+  .res-list a:hover{border-color:var(--up);color:var(--up);}
+
+  .disclaimer{
+    margin-top:30px;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.6;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Plano de estudo · 1h/dia · Profit Pro</div>
+  <h1>Formação em Trading &amp; Operações Estruturadas</h1>
+  <p class="sub">Trilha de 12 semanas, com estudo diário de ~1 hora, cobrindo domínio da plataforma Profit Pro, análise técnica e tape reading, derivativos e operações estruturadas com opções, e construção de um plano de trading validado antes de qualquer operação com capital real.</p>
+
+  <div class="panel">
+    <div class="curve-head">
+      <span class="curve-label">Progresso acumulado</span>
+      <span class="curve-value" id="pctLabel">0%</span>
+    </div>
+    <svg id="curve" viewBox="0 0 600 90" preserveAspectRatio="none">
+      <line x1="0" y1="89" x2="600" y2="89" stroke="#232B35" stroke-width="1"/>
+      <polyline id="curveLine" points="" fill="none" stroke="#3ECF8E" stroke-width="2"/>
+    </svg>
+    <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+    <div class="stats-row">
+      <span><b id="doneCount">0</b>/<span id="totalCount">0</span> tarefas concluídas</span>
+      <span><b id="checkpointCount">0</b>/4 checkpoints validados</span>
+    </div>
+  </div>
+
+  <div id="phases"></div>
+
+  <div class="disclaimer">
+    Conteúdo educacional de uso pessoal, não constitui recomendação de investimento. Operações com contratos futuros, opções e estruturas derivativas envolvem risco de perda substancial, inclusive superior ao capital investido, e devem ser praticadas em ambiente simulado (Profit Training / conta demo) até que as regras de gestão de risco estejam validadas. Progresso é mantido apenas durante esta sessão do navegador — não há gravação em servidor.
+  </div>
+</div>
+
+<script>
+const DATA = [
+  {
+    phase: "Fase 1 — Fundamentos e Domínio do Profit Pro",
+    weeks: [
+      {
+        name: "Instalação e primeiros passos",
+        tasks: [
+          ["Seg","Instalar Profit Pro (ou solicitar teste grátis de 15 dias) e configurar a conta demo"],
+          ["Ter","Assistir 'Instalando a Plataforma Profit | Profit na Prática' e montar o primeiro gráfico"],
+          ["Qua","Aula 1 Nelogica: abertura de menu e configuração de tela"],
+          ["Qui","Estudar especificações do mini índice (WIN) e mini dólar (WDO) na B3"],
+          ["Sex","Aula 2 Nelogica: configurar Book de Ofertas e Times & Trades"]
+        ],
+        resources: [
+          ["Teste grátis Profit Pro (15 dias)", "https://www.nelogica.com.br/promo?strSlug=youtube-profit"],
+          ["Vídeo: Instalando a Plataforma Profit", "https://www.youtube.com/watch?v=qMIFvSUuusY"],
+          ["Aprendendo a usar o Profit Pro (Aulas 1-6)", "https://ajuda.nelogica.com.br/hc/pt-br/articles/360041173631-Aprendendo-a-usar-o-Profit-Pro"]
+        ]
+      },
+      {
+        name: "Ferramentas do Profit Pro",
+        tasks: [
+          ["Seg","Aula 3 Nelogica: filtros e visualizações (lado, agente, tamanho de lote, agressores)"],
+          ["Ter","Configurar indicadores básicos: médias móveis e RSI"],
+          ["Qua","Aula 4 Nelogica: envio de ordens e ordem OCO em conta demo"],
+          ["Qui","Praticar timeframes, candles e volume em 3 ativos diferentes"],
+          ["Sex","Revisão da semana: registrar 5 observações de mercado no diário de trade"]
+        ],
+        resources: [
+          ["Profit Training (simulador)", "https://www.nelogica.com.br/produtos/profit-training"],
+          ["Aprendendo a usar o Profit Pro (Aulas 1-6)", "https://ajuda.nelogica.com.br/hc/pt-br/articles/360041173631-Aprendendo-a-usar-o-Profit-Pro"]
+        ]
+      },
+      {
+        name: "Gerenciamento de risco e Day Trade",
+        tasks: [
+          ["Seg","Aula 5 Nelogica: gerenciamento de risco (stop loss/gain) configurado no Profit"],
+          ["Ter","Curso 'Introdução ao Day Trade' (Nelogica Academy) — módulos iniciais"],
+          ["Qua","Curso Day Trade: book de ofertas x tape reading"],
+          ["Qui","Curso Day Trade: módulos finais, mindset e disciplina"],
+          ["Sex","checkpoint","Checkpoint 1 — Instalar o Profit sozinho, configurar 3 monitores de gráfico com indicadores e montar/enviar (simulado) uma ordem OCO com stop definido, sem consultar tutorial"]
+        ],
+        resources: [
+          ["Curso gratuito: Introdução ao Day Trade", "https://lp.nelogica.com.br/nelogica-academy-curso-intr-day-trade"],
+          ["Aprendendo a usar o Profit Pro (Aula 5 — risco)", "https://ajuda.nelogica.com.br/hc/pt-br/articles/360041173631-Aprendendo-a-usar-o-Profit-Pro"]
+        ]
+      }
+    ]
+  },
+  {
+    phase: "Fase 2 — Análise Técnica, Tape Reading e Simulação",
+    weeks: [
+      {
+        name: "Análise técnica essencial",
+        tasks: [
+          ["Seg","Identificar suportes e resistências em 3 ativos diferentes no Profit"],
+          ["Ter","Aplicar médias móveis curta/longa e cruzamentos em WIN/WDO"],
+          ["Qua","Reconhecer padrões de candles (engolfo, martelo, doji) em gráfico real"],
+          ["Qui","Configurar e interpretar Volume e VWAP no Profit"],
+          ["Sex","Revisão: registrar 5 setups técnicos observados no diário de trade"]
+        ],
+        resources: [
+          ["Aprendendo a usar o Profit Pro", "https://ajuda.nelogica.com.br/hc/pt-br/articles/360041173631-Aprendendo-a-usar-o-Profit-Pro"]
+        ]
+      },
+      {
+        name: "Tape reading e leitura de fluxo",
+        tasks: [
+          ["Seg","Fundamentos de tape reading: leitura do Times & Trades"],
+          ["Ter","Identificar absorção e agressão compradora/vendedora no book"],
+          ["Qua","Praticar leitura de fluxo por 1h no Profit Training"],
+          ["Qui","Combinar tape reading + suporte/resistência em 3 operações simuladas"],
+          ["Sex","Revisão da semana: anotar acertos e erros no diário de trade"]
+        ],
+        resources: [
+          ["Profit Training (simulador)", "https://www.nelogica.com.br/produtos/profit-training"]
+        ]
+      },
+      {
+        name: "Backtesting e simulação",
+        tasks: [
+          ["Seg","Configurar um backtest simples de uma estratégia no Profit"],
+          ["Ter","Rodar o backtest e interpretar taxa de acerto e payoff"],
+          ["Qua","Operar 5 trades simulados no Profit Training seguindo plano escrito"],
+          ["Qui","Aula 6 Nelogica: acompanhar posições, ganhos e performance"],
+          ["Sex","checkpoint","Checkpoint 2 — Executar e documentar 10 operações simuladas consecutivas no Profit Training, com stop/gain definidos antes da entrada, calculando taxa de acerto e payoff"]
+        ],
+        resources: [
+          ["Profit Training (simulador)", "https://www.nelogica.com.br/produtos/profit-training"],
+          ["Aprendendo a usar o Profit Pro (Aula 6 — resultados)", "https://ajuda.nelogica.com.br/hc/pt-br/articles/360041173631-Aprendendo-a-usar-o-Profit-Pro"]
+        ]
+      }
+    ]
+  },
+  {
+    phase: "Fase 3 — Derivativos e Operações Estruturadas",
+    weeks: [
+      {
+        name: "Fundamentos de derivativos",
+        tasks: [
+          ["Seg","B3 Educação: 'Conheça Derivativos e suas Estratégias' (futuro, termo, opções, swap)"],
+          ["Ter","Aprofundar contratos futuros: WIN, WDO e ajuste diário"],
+          ["Qua","Mercado a termo: conceito e uso prático"],
+          ["Qui","Introdução a Swaps: funcionamento básico"],
+          ["Sex","Revisão: escrever as diferenças entre os 4 tipos de derivativos"]
+        ],
+        resources: [
+          ["B3 Educação — Conheça Derivativos e suas Estratégias", "https://edu.b3.com.br/w/conheca-derivativos-e-suas-estrategias"],
+          ["Portal B3 Educação (hub completo)", "https://edu.b3.com.br/"]
+        ]
+      },
+      {
+        name: "Opções: conceitos e gregas",
+        tasks: [
+          ["Seg","B3 Educação: 'Opções' (call/put, americano/europeu, ITM/ATM/OTM)"],
+          ["Ter","B3 Educação: 'Investindo com Opções' (aplicações em carteira)"],
+          ["Qua","Gregas: Delta, Gamma, Theta, Vega — intuição prática"],
+          ["Qui","Precificação: visão geral de Black-Scholes, sem aprofundar na matemática"],
+          ["Sex","Revisão: montar no papel uma call e uma put hipotéticas com strike e vencimento"]
+        ],
+        resources: [
+          ["B3 Educação — Opções", "https://edu.b3.com.br/w/opcoes"],
+          ["B3 Educação — Investindo com Opções", "https://edu.b3.com.br/w/investindo-com-opcoes"],
+          ["B3 Educação — Opções sobre Ações", "https://edu.b3.com.br/w/opcoes-acoes"]
+        ]
+      },
+      {
+        name: "Operações estruturadas",
+        tasks: [
+          ["Seg","Travas de alta e travas de baixa: mecânica e payoff"],
+          ["Ter","Borboletas e combinações com o ativo-objeto"],
+          ["Qua","B3 Educação: 'Opções sobre Ibovespa' e 'Opções sobre Dólar' (estruturas em índice/câmbio)"],
+          ["Qui","Simular (no papel ou em demo) uma trava de alta com dados reais de mercado"],
+          ["Sex","checkpoint","Checkpoint 3 — Explicar a mecânica de uma trava de alta e uma trava de baixa, e montar (simulado) uma estrutura com ganho e perda máxima definidos"]
+        ],
+        resources: [
+          ["B3 Educação — Opções sobre Ibovespa", "https://edu.b3.com.br/w/opcoes-ibovespab3"],
+          ["B3 Educação — Opções sobre Dólar", "https://edu.b3.com.br/w/opcoes-dolar"]
+        ]
+      }
+    ]
+  },
+  {
+    phase: "Fase 4 — Estratégia, Automação e Validação Final",
+    weeks: [
+      {
+        name: "Construção do plano de trading",
+        tasks: [
+          ["Seg","Definir seu perfil operacional (day trade / swing trade) e mercados de atuação"],
+          ["Ter","Escrever regras de entrada e saída (checklist de setup)"],
+          ["Qua","Definir regras de gestão de risco (% de capital por operação, stop máximo diário)"],
+          ["Qui","Criar modelo de diário de trade (planilha ou caderno)"],
+          ["Sex","Revisar o plano escrito criticamente antes de seguir para automação"]
+        ],
+        resources: []
+      },
+      {
+        name: "Introdução à automação de estratégias",
+        tasks: [
+          ["Seg","Curso gratuito 'Automação de Estratégias no Profit' — editor de estratégias"],
+          ["Ter","Declaração de parâmetros de entrada e variáveis"],
+          ["Qua","Tipos de dados e séries de dados na linguagem do Profit"],
+          ["Qui","Montar uma estratégia simples (ex: cruzamento de médias) em ambiente de simulação"],
+          ["Sex","Rodar a estratégia simples em backtest e revisar os resultados"]
+        ],
+        resources: [
+          ["Curso: Automação de Estratégias no Profit", "https://www.invest.academy/pt/courselp/68"],
+          ["Central de Ajuda Nelogica", "https://ajuda.nelogica.com.br/"]
+        ]
+      },
+      {
+        name: "Validação final e continuidade",
+        tasks: [
+          ["Seg","Operar 5 sessões simuladas seguindo o plano de trading integralmente"],
+          ["Ter","Revisar o diário de trade das últimas 12 semanas e identificar padrões de erro"],
+          ["Qua","Calcular métricas finais: taxa de acerto, payoff e drawdown máximo simulado"],
+          ["Qui","Definir plano de estudo contínuo para os próximos 90 dias"],
+          ["Sex","checkpoint","Checkpoint Final — Apresentar um relatório de performance simulada de 12 semanas (taxa de acerto, payoff, drawdown) e um plano de trading escrito antes de considerar operar com capital real"]
+        ],
+        resources: [
+          ["Profit Training (simulador)", "https://www.nelogica.com.br/produtos/profit-training"]
+        ]
+      }
+    ]
+  }
+];
+
+const phasesEl = document.getElementById('phases');
+let totalItems = 0;
+let weekTotals = []; // {checked, total} per week in order
+
+DATA.forEach((phase) => {
+  const phaseDiv = document.createElement('div');
+  phaseDiv.className = 'phase';
+  const h = document.createElement('div');
+  h.className = 'phase-title';
+  h.textContent = phase.phase;
+  phaseDiv.appendChild(h);
+
+  phase.weeks.forEach((week, wIdx) => {
+    const weekEl = document.createElement('div');
+    weekEl.className = 'week';
+
+    const head = document.createElement('div');
+    head.className = 'week-head';
+    head.innerHTML = `
+      <div class="week-title">
+        <span class="week-num">S${weekTotals.length + 1}</span>
+        <span class="week-name">${week.name}</span>
+      </div>
+      <div class="week-meta"><span class="wk-progress">0/${week.tasks.length}</span><span class="chevron">▸</span></div>
+    `;
+    weekEl.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'week-body';
+
+    const list = document.createElement('ul');
+    list.className = 'task-list';
+
+    const weekIndex = weekTotals.length;
+    weekTotals.push({checked: 0, total: week.tasks.length});
+
+    week.tasks.forEach((t, tIdx) => {
+      const isCheckpoint = t[0] === 'checkpoint';
+      const day = isCheckpoint ? 'Checkpoint' : t[0];
+      const text = isCheckpoint ? t[1] : t[1];
+      const li = document.createElement('li');
+      li.className = 'task' + (isCheckpoint ? ' checkpoint' : '');
+      const cbId = `t-${weekIndex}-${tIdx}`;
+      li.innerHTML = `
+        <input type="checkbox" id="${cbId}" data-week="${weekIndex}" data-checkpoint="${isCheckpoint}">
+        <label for="${cbId}"><span class="day">${day}</span>${text}</label>
+      `;
+      list.appendChild(li);
+      totalItems++;
+    });
+
+    body.appendChild(list);
+
+    if (week.resources.length) {
+      const res = document.createElement('div');
+      res.className = 'resources';
+      res.innerHTML = `<div class="res-label">Recursos</div><div class="res-list">${
+        week.resources.map(r => `<a href="${r[1]}" target="_blank" rel="noopener">${r[0]} ↗</a>`).join('')
+      }</div>`;
+      body.appendChild(res);
+    }
+
+    weekEl.appendChild(body);
+    phaseDiv.appendChild(weekEl);
+
+    head.addEventListener('click', () => {
+      weekEl.classList.toggle('open');
+      body.style.maxHeight = weekEl.classList.contains('open') ? body.scrollHeight + 'px' : '0';
+    });
+  });
+
+  phasesEl.appendChild(phaseDiv);
+});
+
+document.getElementById('totalCount').textContent = totalItems;
+
+function updateProgress(){
+  let done = 0;
+  let checkpointsDone = 0;
+  weekTotals.forEach(w => w.checked = 0);
+
+  document.querySelectorAll('.task input[type="checkbox"]').forEach(cb => {
+    const li = cb.closest('.task');
+    if (cb.checked){
+      done++;
+      li.classList.add('checked');
+      weekTotals[+cb.dataset.week].checked++;
+      if (cb.dataset.checkpoint === 'true') checkpointsDone++;
+    } else {
+      li.classList.remove('checked');
+    }
+  });
+
+  document.getElementById('doneCount').textContent = done;
+  document.getElementById('checkpointCount').textContent = checkpointsDone;
+  const pct = totalItems ? Math.round((done/totalItems)*100) : 0;
+  document.getElementById('pctLabel').textContent = pct + '%';
+  document.getElementById('barFill').style.width = pct + '%';
+
+  // per-week meta counters
+  document.querySelectorAll('.week').forEach((w, i) => {
+    const meta = w.querySelector('.wk-progress');
+    if (meta) meta.textContent = `${weekTotals[i].checked}/${weekTotals[i].total}`;
+  });
+
+  // equity curve: cumulative completion across weeks
+  const n = weekTotals.length;
+  let cumChecked = 0, cumTotal = 0;
+  const points = [];
+  const stepX = 600 / (n - 1 || 1);
+  weekTotals.forEach((w, i) => {
+    cumChecked += w.checked;
+    cumTotal += w.total;
+    const fracComplete = cumTotal ? (cumChecked/cumTotal) : 0;
+    const overallY = 85 - (fracComplete * 75);
+    points.push(`${(i*stepX).toFixed(1)},${overallY.toFixed(1)}`);
+  });
+  document.getElementById('curveLine').setAttribute('points', points.join(' '));
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target.matches('.task input[type="checkbox"]')) updateProgress();
+});
+
+updateProgress();
+
+// open first week by default
+const firstWeek = document.querySelector('.week');
+if (firstWeek){
+  firstWeek.classList.add('open');
+  firstWeek.querySelector('.week-body').style.maxHeight = firstWeek.querySelector('.week-body').scrollHeight + 'px';
+}
+</script>
+</body>
+</html>
