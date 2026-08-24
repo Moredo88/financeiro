@@ -30,57 +30,68 @@ interface SidebarProps {
   userEmail?: string
 }
 
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Lancamentos', href: '/lancamentos', icon: Receipt },
-  { name: 'Assistente IA', href: '/assistente', icon: Sparkles },
-  { name: 'Configuracoes', href: '/configuracoes', icon: Settings },
-]
-
-const investimentosNavigation = [
-  { name: 'Ativos', href: '/ativos', icon: Landmark },
-  { name: 'Parametros', href: '/parametros', icon: SlidersHorizontal },
-  { name: 'Movimentacoes', href: '/movimentacoes', icon: ArrowLeftRight },
-  { name: 'Saldos Mensais', href: '/saldos', icon: CalendarCheck },
-  { name: 'Dashboard Estrategia', href: '/estrategia', icon: PieChart },
-  { name: 'Dashboard Gestao', href: '/gestao', icon: BarChart3 },
-]
-
-const capacitacaoNavigation = [
-  { name: 'Plano de Trading', href: '/plano-trading.html', icon: GraduationCap, external: true },
-]
-
-const adminNavigation = [
-  { name: 'Usuarios', href: '/admin/usuarios', icon: Users },
-]
-
 type NavItem = { name: string; href: string; icon: React.ElementType; external?: boolean }
+type NavGroup = { id: string; label: string; items: NavItem[]; adminOnly?: boolean }
+
+const GRUPOS: NavGroup[] = [
+  {
+    id: 'conta-corrente',
+    label: 'Conta Corrente',
+    items: [
+      { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+      { name: 'Lancamentos', href: '/lancamentos', icon: Receipt },
+      { name: 'Assistente IA', href: '/assistente', icon: Sparkles },
+      { name: 'Configuracoes', href: '/configuracoes', icon: Settings },
+    ],
+  },
+  {
+    id: 'investimentos',
+    label: 'Investimentos',
+    items: [
+      { name: 'Ativos', href: '/ativos', icon: Landmark },
+      { name: 'Parametros', href: '/parametros', icon: SlidersHorizontal },
+      { name: 'Movimentacoes', href: '/movimentacoes', icon: ArrowLeftRight },
+      { name: 'Saldos Mensais', href: '/saldos', icon: CalendarCheck },
+      { name: 'Dashboard Estrategia', href: '/estrategia', icon: PieChart },
+      { name: 'Dashboard Gestao', href: '/gestao', icon: BarChart3 },
+    ],
+  },
+  {
+    id: 'capacitacao',
+    label: 'Capacitacao',
+    items: [
+      { name: 'Plano de Trading', href: '/plano-trading.html', icon: GraduationCap, external: true },
+    ],
+  },
+  {
+    id: 'administracao',
+    label: 'Administracao',
+    adminOnly: true,
+    items: [{ name: 'Usuarios', href: '/admin/usuarios', icon: Users }],
+  },
+]
 
 const linkBase =
-  'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900'
+  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900'
 
 export default function Sidebar({ userRole, userEmail }: SidebarProps) {
-  const { collapsed, toggleCollapsed, mobileOpen, closeMobile } = useSidebar()
+  const { collapsed, toggleCollapsed, isGroupOpen, toggleGroup, mobileOpen, closeMobile } =
+    useSidebar()
   const pathname = usePathname()
 
+  // Em telas pequenas o menu e um painel sobreposto: la ele nunca fica em modo
+  // icone, entao os grupos valem sempre. No desktop, o modo icone dispensa os
+  // cabecalhos e mostra tudo em lista corrida.
+  const modoIcone = collapsed
+
   function renderNavItem(item: NavItem) {
-    const isActive = !item.external && (item.href === '/' ? pathname === '/' : pathname.startsWith(item.href))
+    const isActive =
+      !item.external && (item.href === '/' ? pathname === '/' : pathname.startsWith(item.href))
 
     const inner = (
       <>
         <item.icon className="h-5 w-5 shrink-0" />
-        <span className={clsx('truncate', collapsed && 'md:hidden')}>{item.name}</span>
-        {/* Tooltip: so existe visualmente com o menu recolhido no desktop; o
-            nome ja chega aos leitores de tela pelo aria-label do link. */}
-        <span
-          aria-hidden="true"
-          className={clsx(
-            'pointer-events-none absolute left-full top-1/2 z-50 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-100 opacity-0 shadow-lg ring-1 ring-slate-700 transition-opacity duration-150',
-            collapsed && 'md:block md:group-hover:opacity-100 md:group-focus-visible:opacity-100'
-          )}
-        >
-          {item.name}
-        </span>
+        <span className={clsx('truncate', modoIcone && 'md:hidden')}>{item.name}</span>
       </>
     )
 
@@ -88,7 +99,10 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
       linkBase,
       isActive ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
     )
-    const ariaLabel = collapsed ? item.name : undefined
+    // No modo icone o texto some, entao o nome precisa vir pelo title (tooltip
+    // do proprio navegador, que nao e cortado pelo overflow da barra) e pelo
+    // aria-label, para quem usa leitor de tela.
+    const rotulo = modoIcone ? item.name : undefined
 
     if (item.external) {
       return (
@@ -98,7 +112,8 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
           target="_blank"
           rel="noopener noreferrer"
           className={className}
-          aria-label={ariaLabel}
+          aria-label={rotulo}
+          title={rotulo}
         >
           {inner}
         </a>
@@ -106,24 +121,62 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
     }
 
     return (
-      <Link key={item.href} href={item.href} className={className} aria-label={ariaLabel}>
+      <Link
+        key={item.href}
+        href={item.href}
+        className={className}
+        aria-label={rotulo}
+        title={rotulo}
+        // No painel sobreposto, navegar tem de fechar o painel: senao ele fica
+        // por cima da tela que acabou de abrir.
+        onClick={closeMobile}
+      >
         {inner}
       </Link>
     )
   }
 
-  function renderGroupLabel(text: string) {
+  function renderGroup(group: NavGroup) {
+    const aberto = isGroupOpen(group.id)
+    const painelId = `menu-grupo-${group.id}`
+
     return (
-      <div
-        className={clsx(
-          'px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-500',
-          collapsed && 'md:hidden'
-        )}
-      >
-        {text}
+      <div key={group.id} className="pt-2 first:pt-0">
+        <button
+          type="button"
+          onClick={() => toggleGroup(group.id)}
+          aria-expanded={aberto}
+          aria-controls={painelId}
+          className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        >
+          <ChevronRight
+            aria-hidden="true"
+            className={clsx(
+              'h-3.5 w-3.5 shrink-0 transition-transform duration-200',
+              aberto && 'rotate-90'
+            )}
+          />
+          <span className="truncate">{group.label}</span>
+        </button>
+
+        {/* 0fr -> 1fr anima a altura sem precisar medi-la em JavaScript. */}
+        <div
+          id={painelId}
+          inert={!aberto}
+          className={clsx(
+            'grid transition-[grid-template-rows] duration-200 ease-in-out',
+            aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+          )}
+        >
+          <div className="overflow-hidden">
+            <div className="space-y-1 pt-1">{group.items.map(renderNavItem)}</div>
+          </div>
+        </div>
       </div>
     )
   }
+
+  const grupos = GRUPOS.filter((g) => !g.adminOnly || userRole === 'admin')
 
   return (
     <>
@@ -145,61 +198,72 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
           collapsed ? 'md:w-16' : 'md:w-64'
         )}
       >
-        <div className="flex items-center gap-3 border-b border-slate-700 px-4 py-5">
-          <DollarSign className="h-7 w-7 shrink-0 text-blue-400" />
-          <span className={clsx('truncate text-lg font-bold tracking-tight', collapsed && 'md:hidden')}>
+        <div className="flex items-center gap-2 border-b border-slate-700 px-4 py-5">
+          {/* No modo icone a faixa tem 32px uteis: logo + botao nao cabem, e o
+              botao e o que precisa estar ao alcance. */}
+          <DollarSign
+            className={clsx('h-7 w-7 shrink-0 text-blue-400', modoIcone && 'md:hidden')}
+          />
+          <span
+            className={clsx('truncate text-lg font-bold tracking-tight', modoIcone && 'md:hidden')}
+          >
             Conta Corrente
           </span>
+
+          {/* Recolher o menu inteiro: no topo, onde se procura por ele. */}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            className={clsx(
+              'hidden cursor-pointer rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 md:block',
+              collapsed ? 'md:mx-auto' : 'md:ml-auto'
+            )}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </button>
+
           <button
             type="button"
             onClick={closeMobile}
             aria-label="Fechar menu"
-            className="ml-auto rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 md:hidden"
+            className="ml-auto cursor-pointer rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 md:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 py-4">
-          {navigation.map(renderNavItem)}
-
-          {renderGroupLabel('Investimentos')}
-          {investimentosNavigation.map(renderNavItem)}
-
-          {renderGroupLabel('Capacitacao')}
-          {capacitacaoNavigation.map(renderNavItem)}
-
-          {userRole === 'admin' && adminNavigation.map(renderNavItem)}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-4">
+          {modoIcone ? (
+            // Modo icone: sem cabecalho para clicar, os grupos nao fazem sentido.
+            <div className="hidden space-y-1 md:block">
+              {grupos.flatMap((g) => g.items).map(renderNavItem)}
+            </div>
+          ) : null}
+          <div className={clsx(modoIcone && 'md:hidden')}>{grupos.map(renderGroup)}</div>
         </nav>
 
         <div className="space-y-1 border-t border-slate-700 px-2 py-3">
           {/* Fora dos grupos de trabalho: e ajuda, nao mais uma tela de dado. */}
           {renderNavItem({ name: 'Manual do Usuario', href: '/manual', icon: BookOpen })}
           {userEmail && (
-            <div className={clsx('truncate px-3 py-1 text-xs text-slate-400', collapsed && 'md:hidden')}>
+            <div className={clsx('truncate px-3 py-1 text-xs text-slate-400', modoIcone && 'md:hidden')}>
               {userEmail}
             </div>
           )}
-          <a href="/auth/signout" className={clsx(linkBase, 'text-slate-300 hover:bg-slate-800 hover:text-white')}>
-            <LogOut className="h-5 w-5 shrink-0" />
-            <span className={clsx('truncate', collapsed && 'md:hidden')}>Sair</span>
-          </a>
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-            className="hidden w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:flex"
+          <a
+            href="/auth/signout"
+            className={clsx(linkBase, 'text-slate-300 hover:bg-slate-800 hover:text-white')}
           >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5 shrink-0" />
-            ) : (
-              <>
-                <ChevronLeft className="h-5 w-5 shrink-0" />
-                <span>Recolher</span>
-              </>
-            )}
-          </button>
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span className={clsx('truncate', modoIcone && 'md:hidden')}>Sair</span>
+          </a>
         </div>
       </aside>
     </>

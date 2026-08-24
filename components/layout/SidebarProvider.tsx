@@ -1,14 +1,17 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
 
 const STORAGE_KEY = 'ccor:menu-recolhido'
+const GRUPOS_KEY = 'ccor:grupos-recolhidos'
 
 interface SidebarContextValue {
   /** Menu reduzido a icones, no desktop. */
   collapsed: boolean
   toggleCollapsed: () => void
+  /** Grupo aberto ou recolhido, por id. */
+  isGroupOpen: (id: string) => boolean
+  toggleGroup: (id: string) => void
   /** Painel sobreposto, em telas pequenas. */
   mobileOpen: boolean
   openMobile: () => void
@@ -18,14 +21,16 @@ interface SidebarContextValue {
 const SidebarContext = createContext<SidebarContextValue | null>(null)
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  // Comeca expandido para o HTML do servidor bater com o do cliente; a
-  // preferencia salva e aplicada logo apos a montagem.
+  // Comeca expandido para o HTML do servidor bater com o do cliente; as
+  // preferencias salvas sao aplicadas logo apos a montagem.
   const [collapsed, setCollapsed] = useState(false)
+  const [gruposFechados, setGruposFechados] = useState<string[]>([])
   const [mobileOpen, setMobileOpen] = useState(false)
-  const pathname = usePathname()
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(STORAGE_KEY) === '1')
+    const salvos = window.localStorage.getItem(GRUPOS_KEY)
+    if (salvos) setGruposFechados(salvos.split(',').filter(Boolean))
   }, [])
 
   const toggleCollapsed = useCallback(() => {
@@ -36,13 +41,20 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  // Guardamos quem esta FECHADO: assim um grupo novo nasce aberto, sem
+  // precisar migrar a preferencia de quem ja usa o sistema.
+  const isGroupOpen = useCallback((id: string) => !gruposFechados.includes(id), [gruposFechados])
+
+  const toggleGroup = useCallback((id: string) => {
+    setGruposFechados((prev) => {
+      const proximo = prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
+      window.localStorage.setItem(GRUPOS_KEY, proximo.join(','))
+      return proximo
+    })
+  }, [])
+
   const openMobile = useCallback(() => setMobileOpen(true), [])
   const closeMobile = useCallback(() => setMobileOpen(false), [])
-
-  // Troca de tela: fecha o painel sobreposto, para nao cobrir o conteudo seguinte.
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [pathname])
 
   useEffect(() => {
     if (!mobileOpen) return
@@ -55,7 +67,15 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarContext.Provider
-      value={{ collapsed, toggleCollapsed, mobileOpen, openMobile, closeMobile }}
+      value={{
+        collapsed,
+        toggleCollapsed,
+        isGroupOpen,
+        toggleGroup,
+        mobileOpen,
+        openMobile,
+        closeMobile,
+      }}
     >
       {children}
     </SidebarContext.Provider>
