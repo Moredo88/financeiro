@@ -8,6 +8,7 @@ import { useSidebar } from '@/components/layout/SidebarProvider'
 // Mesma ordem e mesmos nomes do Sidebar, para o cabecalho bater com o menu.
 const titles: Record<string, string> = {
   '/': 'Dashboard',
+  '/anotacoes': 'Anotacoes',
   '/lancamentos': 'Lancamentos',
   '/assistente': 'Assistente IA',
   '/configuracoes': 'Configuracoes',

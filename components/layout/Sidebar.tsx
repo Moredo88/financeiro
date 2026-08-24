@@ -21,6 +21,7 @@ import {
   CalendarCheck,
   BookOpen,
   GraduationCap,
+  StickyNote,
   X,
 } from 'lucide-react'
 import { useSidebar } from './SidebarProvider'
@@ -32,6 +33,8 @@ interface SidebarProps {
 
 type NavItem = { name: string; href: string; icon: React.ElementType; external?: boolean }
 type NavGroup = { id: string; label: string; items: NavItem[]; adminOnly?: boolean }
+
+const ANOTACOES: NavItem = { name: 'Anotacoes', href: '/anotacoes', icon: StickyNote }
 
 const GRUPOS: NavGroup[] = [
   {
@@ -240,6 +243,11 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
         </div>
 
         <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-4">
+          {/* Fora dos grupos, e no topo: anotacao se abre no meio de outra
+              tarefa, entao precisa estar sempre no mesmo lugar, sem depender
+              de qual grupo esta recolhido. */}
+          <div className="mb-1">{renderNavItem(ANOTACOES)}</div>
+
           {modoIcone ? (
             // Modo icone: sem cabecalho para clicar, os grupos nao fazem sentido.
             <div className="hidden space-y-1 md:block">
