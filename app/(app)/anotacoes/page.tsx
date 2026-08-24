@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
@@ -108,6 +109,19 @@ export default function AnotacoesPage() {
   useEffect(() => {
     carregar()
   }, [carregar])
+
+  // Botao global (Header, em qualquer tela) chega aqui via
+  // /anotacoes?novo=1: mesmo atalho da tecla "n", so que acessivel de fora
+  // desta pagina.
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      setCriacaoAberta(true)
+      criacaoRef.current?.focus()
+      router.replace('/anotacoes')
+    }
+  }, [searchParams, router])
 
   // Atalho: "n" em qualquer ponto da tela leva o cursor para a criacao
   // rapida. So dispara fora de campo de texto, senao digitar "n" numa

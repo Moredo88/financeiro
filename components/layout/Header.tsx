@@ -1,7 +1,7 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
-import { Eye, EyeOff, Menu } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Eye, EyeOff, Menu, Plus } from 'lucide-react'
 import { useValores } from '@/components/ValoresProvider'
 import { useSidebar } from '@/components/layout/SidebarProvider'
 
@@ -25,12 +25,13 @@ const titles: Record<string, string> = {
 
 export default function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const title = titles[pathname] ?? 'Conta Corrente'
   const { oculto, alternar } = useValores()
   const { openMobile } = useSidebar()
 
   return (
-    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 md:px-6">
+    <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 md:px-6">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -42,16 +43,39 @@ export default function Header() {
         </button>
         <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
       </div>
-      <button
-        type="button"
-        onClick={alternar}
-        aria-pressed={oculto}
-        title={oculto ? 'Mostrar valores' : 'Ocultar valores'}
-        className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-      >
-        {oculto ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-        {oculto ? 'Mostrar valores' : 'Ocultar valores'}
-      </button>
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {/* Disponiveis em qualquer tela: levam para a tela dona do dado com
+            a criacao ja aberta, em vez de duplicar a logica de salvar aqui. */}
+        <button
+          type="button"
+          onClick={() => router.push('/acoes?novo=1')}
+          title="Nova Acao"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Nova Acao</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push('/anotacoes?novo=1')}
+          title="Nova Anotacao"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Nova Anotacao</span>
+        </button>
+        <button
+          type="button"
+          onClick={alternar}
+          aria-pressed={oculto}
+          title={oculto ? 'Mostrar valores' : 'Ocultar valores'}
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          {oculto ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          <span className="hidden sm:inline">{oculto ? 'Mostrar valores' : 'Ocultar valores'}</span>
+        </button>
+      </div>
     </header>
   )
 }

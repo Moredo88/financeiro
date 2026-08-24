@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
 import { addDays } from 'date-fns'
 import Button from '@/components/ui/Button'
@@ -87,6 +88,18 @@ export default function AcoesPage() {
 
   const [modalAberto, setModalAberto] = useState<Acao | 'novo' | null>(null)
   const [aExcluir, setAExcluir] = useState<Acao | null>(null)
+
+  // Botao global (Header, em qualquer tela) chega aqui via /acoes?novo=1: e
+  // o jeito de abrir a criacao sem duplicar a logica de salvar fora desta
+  // pagina.
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      setModalAberto('novo')
+      router.replace('/acoes')
+    }
+  }, [searchParams, router])
 
   const tagsExistentes = useMemo(() => {
     const vistas = new Set<string>()
