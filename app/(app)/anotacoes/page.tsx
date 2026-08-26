@@ -459,10 +459,16 @@ function CriacaoRapida({
     onFechar()
   }
 
+  // Titulo e opcional: quem escreve a nota inteira na descricao e deixa o
+  // titulo em branco nao pode ficar com o Salvar travado. Sem titulo, usa o
+  // comeco da descricao (a coluna "titulo" e NOT NULL no banco).
+  const vazia = !titulo.trim() && !descricao.trim()
+
   async function salvar() {
-    if (!titulo.trim()) return
+    if (vazia) return
     setSalvando(true)
-    const ok = await onCriar(titulo.trim(), tags, descricao.trim())
+    const tituloFinal = titulo.trim() || descricao.trim().slice(0, 60)
+    const ok = await onCriar(tituloFinal, tags, descricao.trim())
     setSalvando(false)
     if (ok) limpar()
   }
@@ -474,7 +480,7 @@ function CriacaoRapida({
         value={titulo}
         onChange={(e) => setTitulo(e.target.value)}
         onFocus={onAbrir}
-        placeholder="Escreva uma anotacao..."
+        placeholder="Titulo (opcional)..."
         aria-label="Titulo da anotacao"
         className="w-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
       />
@@ -495,7 +501,7 @@ function CriacaoRapida({
             <Button variant="ghost" size="sm" onClick={limpar}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={salvar} loading={salvando} disabled={!titulo.trim()}>
+            <Button size="sm" onClick={salvar} loading={salvando} disabled={vazia}>
               Salvar
             </Button>
           </div>
@@ -723,10 +729,13 @@ function ModalEdicao({
   const [descricao, setDescricao] = useState(anotacao.descricao)
   const [salvando, setSalvando] = useState(false)
 
+  const vazia = !titulo.trim() && !descricao.trim()
+
   async function salvar() {
-    if (!titulo.trim()) return
+    if (vazia) return
     setSalvando(true)
-    await onSalvar({ titulo: titulo.trim(), tags, descricao: descricao.trim() })
+    const tituloFinal = titulo.trim() || descricao.trim().slice(0, 60)
+    await onSalvar({ titulo: tituloFinal, tags, descricao: descricao.trim() })
     setSalvando(false)
   }
 
@@ -765,7 +774,7 @@ function ModalEdicao({
           <Button variant="secondary" onClick={onFechar}>
             Cancelar
           </Button>
-          <Button onClick={salvar} loading={salvando} disabled={!titulo.trim()}>
+          <Button onClick={salvar} loading={salvando} disabled={vazia}>
             Salvar
           </Button>
         </div>
