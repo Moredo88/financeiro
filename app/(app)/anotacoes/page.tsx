@@ -12,7 +12,6 @@ import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatDate, normalizarTexto } from '@/lib/utils'
 import {
-  Plus,
   Search,
   Pin,
   PinOff,
@@ -497,8 +496,7 @@ function CriacaoRapida({
               Cancelar
             </Button>
             <Button size="sm" onClick={salvar} loading={salvando} disabled={!titulo.trim()}>
-              <Plus className="h-4 w-4" />
-              Nova Anotacao
+              Salvar
             </Button>
           </div>
         </div>
