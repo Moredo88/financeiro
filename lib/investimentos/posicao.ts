@@ -31,7 +31,7 @@ export interface Posicao {
   rentabilidade: number
 }
 
-const RENDA_FIXA_CLASSES = ['RENDA FIXA', 'ESTRUTURADA', 'TESOURO DIRETO', 'COE']
+const RENDA_FIXA_CLASSES = ['RENDA FIXA', 'ESTRUTURADA', 'FUNDOS INVEST.', 'TESOURO DIRETO', 'COE']
 
 export function ehClasseRendaFixa(nome: string | null | undefined): boolean {
   if (!nome) return false
