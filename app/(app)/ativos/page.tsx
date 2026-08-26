@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import MultiSelect from '@/components/ui/MultiSelect'
 import Modal from '@/components/ui/Modal'
 import Textarea from '@/components/ui/Textarea'
 import Badge from '@/components/ui/Badge'
@@ -81,6 +82,10 @@ export default function AtivosPage() {
   const [ativos, setAtivos] = useState<Ativo[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
+  const [classeFiltro, setClasseFiltro] = useState<string[]>([])
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string[]>([])
+  const [corretoraFiltro, setCorretoraFiltro] = useState<string[]>([])
+  const [statusFiltro, setStatusFiltro] = useState<string[]>([])
 
   const [classes, setClasses] = useState<LookupItem[]>([])
   const [categorias, setCategorias] = useState<LookupItem[]>([])
@@ -254,27 +259,63 @@ export default function AtivosPage() {
       { header: 'Vencimento', width: 14, value: (a) => (a.data_vencimento ? formatDate(a.data_vencimento) : '') },
       { header: 'Status', width: 12, value: (a) => a.status },
       { header: 'Descricao', width: 40, value: (a) => a.descricao },
-    ], ativos)
+    ], ativosFiltrados)
   }
 
-  const rendaVariavel = ativos.filter((a) => ehRendaVariavel(a.classes_ativo?.nome))
-  const demais = ativos.filter((a) => !ehRendaVariavel(a.classes_ativo?.nome))
+  const ativosFiltrados = ativos.filter((a) => {
+    if (classeFiltro.length && !classeFiltro.includes(a.classe_id ?? '')) return false
+    if (categoriaFiltro.length && !categoriaFiltro.includes(a.categoria_id ?? '')) return false
+    if (corretoraFiltro.length && !corretoraFiltro.includes(a.banco_corretora_id ?? '')) return false
+    if (statusFiltro.length && !statusFiltro.includes(a.status)) return false
+    return true
+  })
+
+  const rendaVariavel = ativosFiltrados.filter((a) => ehRendaVariavel(a.classes_ativo?.nome))
+  const demais = ativosFiltrados.filter((a) => !ehRendaVariavel(a.classes_ativo?.nome))
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center justify-between gap-4">
-        <Input
-          placeholder="Buscar por ticker ou nome..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="max-w-xs"
-        />
-        <div className="flex items-center gap-2">
-          <ExportButton onExport={handleExport} disabled={ativos.length === 0} />
-          <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4" />
-            Novo Ativo
-          </Button>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <Input
+            placeholder="Buscar por ticker ou nome..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="max-w-xs"
+          />
+          <div className="flex items-center gap-2">
+            <ExportButton onExport={handleExport} disabled={ativosFiltrados.length === 0} />
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4" />
+              Novo Ativo
+            </Button>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <MultiSelect
+            label="Classe / Tipo de Ativo"
+            options={toOptions(classes)}
+            values={classeFiltro}
+            onChange={setClasseFiltro}
+          />
+          <MultiSelect
+            label="Categoria"
+            options={toOptions(categorias)}
+            values={categoriaFiltro}
+            onChange={setCategoriaFiltro}
+          />
+          <MultiSelect
+            label="Banco / Corretora"
+            options={toOptions(bancos)}
+            values={corretoraFiltro}
+            onChange={setCorretoraFiltro}
+          />
+          <MultiSelect
+            label="Status"
+            options={STATUS_OPTIONS}
+            values={statusFiltro}
+            onChange={setStatusFiltro}
+          />
         </div>
       </div>
 
