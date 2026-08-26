@@ -155,6 +155,7 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
       case 'carteira': return a.carteiras?.nome
       case 'estrategia': return a.estrategias?.nome
       case 'recomendacao': return a.recomendacao_atual
+      case 'indexador': return a.indexador
       default: return null
     }
   })
@@ -307,6 +308,7 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
                   <Th campo="carteira" ordem={ordem} aoOrdenar={alternar}>Carteira</Th>
                   <Th campo="estrategia" ordem={ordem} aoOrdenar={alternar}>Estrategia</Th>
                   <Th campo="recomendacao" ordem={ordem} aoOrdenar={alternar}>Recomendacao</Th>
+                  <Th campo="indexador" ordem={ordem} aoOrdenar={alternar}>Indexador</Th>
                   <th className="px-3 py-3 text-right font-medium text-slate-600 w-20">Acoes</th>
                 </tr>
               </thead>
@@ -319,6 +321,7 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
                     <td className="px-3 py-2.5 text-slate-600">{a.carteiras?.nome ?? '-'}</td>
                     <td className="px-3 py-2.5 text-slate-600">{a.estrategias?.nome ?? '-'}</td>
                     <td className="px-3 py-2.5 text-slate-600">{a.recomendacao_atual ?? '-'}</td>
+                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{a.indexador ?? '-'}</td>
                     <td className="px-3 py-2.5 text-right">
                       <button
                         onClick={() => openEdit(a)}
