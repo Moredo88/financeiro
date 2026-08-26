@@ -50,6 +50,24 @@ export default function Header() {
             a criacao ja aberta, em vez de duplicar a logica de salvar aqui. */}
         <button
           type="button"
+          onClick={() => router.push('/lancamentos?novo=1')}
+          title="Novo Lancamento"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Novo Lancamento</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push('/ativos?novo=1')}
+          title="Novo Ativo"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Novo Ativo</span>
+        </button>
+        <button
+          type="button"
           onClick={() => router.push('/acoes?novo=1')}
           title="Nova Acao"
           className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"

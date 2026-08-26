@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { addDays, addWeeks, addMonths, addYears, format, parseISO } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, STATUS_COLORS } from '@/lib/utils'
@@ -217,6 +218,16 @@ export default function LancamentosPage() {
     setForm(emptyForm)
     setModalOpen(true)
   }
+
+  // Botao global (Header, em qualquer tela) chega aqui via /lancamentos?novo=1.
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      openCreate()
+      router.replace('/lancamentos')
+    }
+  }, [searchParams, router])
 
   function openEdit(l: Lancamento) {
     setEditId(l.id)

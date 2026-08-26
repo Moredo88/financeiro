@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -151,6 +152,16 @@ export default function AtivosPage() {
     setForm(emptyForm)
     setModalOpen(true)
   }
+
+  // Botao global (Header, em qualquer tela) chega aqui via /ativos?novo=1.
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      openCreate()
+      router.replace('/ativos')
+    }
+  }, [searchParams, router])
 
   function openEdit(a: Ativo) {
     setEditId(a.id)
