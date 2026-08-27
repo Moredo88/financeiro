@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
+import { createClient } from '@/lib/supabase/client'
 
 /**
  * Tarefa simples: [dia, texto]. Checkpoint: [dia, 'checkpoint', texto] — o
@@ -230,10 +231,42 @@ function ehCheckpoint(t: Tarefa): t is TarefaCheckpoint {
 }
 
 export default function PlanoTradingPage() {
-  // Estado vive so na sessao da pagina — igual ao HTML estatico original,
-  // que nunca gravou progresso em servidor nem em localStorage.
+  // Tarefas concluidas ficam em plano_trading_progresso (uma linha por
+  // tarefa marcada, dono-a-dono). semanaAberta e so estado de UI —
+  // continua vivendo apenas na sessao da pagina, sem gravar no banco.
   const [marcadas, setMarcadas] = useState<Record<string, boolean>>({})
   const [semanaAberta, setSemanaAberta] = useState<Record<number, boolean>>({ 0: true })
+  const [erro, setErro] = useState<string | null>(null)
+
+  const supabase = useMemo(() => createClient(), [])
+
+  const carregar = useCallback(async () => {
+    const { data, error } = await supabase.from('plano_trading_progresso').select('tarefa_chave')
+
+    if (error) {
+      // Tabela ausente = migracao ainda nao rodada. O Postgres devolve
+      // 42P01; o PostgREST, que responde pelo cache de schema, devolve
+      // PGRST205 antes mesmo de consultar o banco.
+      const semTabela =
+        error.code === '42P01' || error.code === 'PGRST205' || /schema cache/i.test(error.message)
+
+      setErro(
+        semTabela
+          ? 'A tabela de progresso ainda nao existe no banco. Rode a migracao supabase/migrations/20260827_plano_trading_progresso.sql no SQL Editor do Supabase.'
+          : `Nao foi possivel carregar o progresso: ${error.message}`
+      )
+      return
+    }
+
+    setErro(null)
+    const carregadas: Record<string, boolean> = {}
+    for (const row of data ?? []) carregadas[row.tarefa_chave] = true
+    setMarcadas(carregadas)
+  }, [supabase])
+
+  useEffect(() => {
+    carregar()
+  }, [carregar])
 
   const semanas = useMemo(() => {
     const out: { fase: Fase; semana: Semana; indice: number }[] = []
@@ -290,9 +323,24 @@ export default function PlanoTradingPage() {
       .join(' ')
   }, [totaisPorSemana])
 
-  function alternarTarefa(indiceSemana: number, indiceTarefa: number) {
+  async function alternarTarefa(indiceSemana: number, indiceTarefa: number) {
     const chave = `${indiceSemana}-${indiceTarefa}`
-    setMarcadas((prev) => ({ ...prev, [chave]: !prev[chave] }))
+    const concluida = !marcadas[chave]
+
+    // Otimista: o check responde na hora, sem esperar o servidor.
+    setMarcadas((prev) => ({ ...prev, [chave]: concluida }))
+
+    const { error } = concluida
+      ? await supabase
+          .from('plano_trading_progresso')
+          .upsert({ tarefa_chave: chave }, { onConflict: 'user_id,tarefa_chave' })
+      : await supabase.from('plano_trading_progresso').delete().eq('tarefa_chave', chave)
+
+    if (error) {
+      // Servidor recusou: desfaz o otimismo e avisa.
+      setMarcadas((prev) => ({ ...prev, [chave]: !concluida }))
+      alert(`Nao foi possivel salvar o progresso: ${error.message}`)
+    }
   }
 
   function alternarSemana(indice: number) {
@@ -417,6 +465,33 @@ export default function PlanoTradingPage() {
           text-decoration:none;
         }
         .plano-trading .pt-res-list a:hover{border-color:var(--pt-up);color:var(--pt-up);}
+        .plano-trading .pt-error{
+          margin-top:16px;
+          padding:12px 14px;
+          border-radius:8px;
+          background:var(--pt-amber-dim);
+          border:1px solid var(--pt-amber);
+          color:var(--pt-amber);
+          font-size:12.5px;
+          line-height:1.6;
+          display:flex;
+          flex-wrap:wrap;
+          align-items:center;
+          gap:10px;
+        }
+        .plano-trading .pt-error-retry{
+          font-family:'IBM Plex Mono',monospace;
+          font-size:11px;
+          text-transform:uppercase;
+          letter-spacing:.06em;
+          color:var(--pt-amber);
+          background:transparent;
+          border:1px solid var(--pt-amber);
+          border-radius:6px;
+          padding:4px 8px;
+          cursor:pointer;
+        }
+        .plano-trading .pt-error-retry:hover{background:var(--pt-amber-dim);}
         .plano-trading .pt-disclaimer{
           margin-top:30px;
           font-size:12px;
@@ -434,6 +509,15 @@ export default function PlanoTradingPage() {
         técnica e tape reading, derivativos e operações estruturadas com opções, e construção de um plano de
         trading validado antes de qualquer operação com capital real.
       </p>
+
+      {erro && (
+        <div className="pt-error">
+          {erro}
+          <button type="button" onClick={carregar} className="pt-error-retry">
+            Tentar novamente
+          </button>
+        </div>
+      )}
 
       <div className="pt-panel">
         <div className="pt-curve-head">
@@ -551,8 +635,8 @@ export default function PlanoTradingPage() {
         Conteúdo educacional de uso pessoal, não constitui recomendação de investimento. Operações com contratos
         futuros, opções e estruturas derivativas envolvem risco de perda substancial, inclusive superior ao
         capital investido, e devem ser praticadas em ambiente simulado (Profit Training / conta demo) até que as
-        regras de gestão de risco estejam validadas. Progresso é mantido apenas durante esta sessão do navegador —
-        não há gravação em servidor.
+        regras de gestão de risco estejam validadas. O progresso das tarefas concluídas fica salvo na sua conta e
+        volta a aparecer em qualquer sessão ou dispositivo.
       </div>
     </div>
   )
