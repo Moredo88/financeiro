@@ -58,6 +58,9 @@ const DATA: Fase[] = [
         resources: [
           ['Profit Training (simulador)', 'https://www.nelogica.com.br/produtos/profit-training'],
           ['Aprendendo a usar o Profit Pro (Aulas 1-6)', 'https://ajuda.nelogica.com.br/hc/pt-br/articles/360041173631-Aprendendo-a-usar-o-Profit-Pro'],
+          ['Guia: Como usar o Profit Pro (indicadores, EMA/RSI)', 'https://traders.com.br/blog/posts/como-usar-profit-pro-guia-completo'],
+          ['Guia ProfitChart: indicadores essenciais para day trade', 'https://cmcapital.com.br/blog/guia-profitchart/'],
+          ['Vídeo: Profit Trader — indicadores e média móvel', 'https://www.youtube.com/watch?v=Q5XBxz9i-A8'],
         ],
       },
       {
