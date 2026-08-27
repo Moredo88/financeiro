@@ -41,6 +41,8 @@ const DATA: Fase[] = [
           ['Teste grátis Profit Pro (15 dias)', 'https://www.nelogica.com.br/promo?strSlug=youtube-profit'],
           ['Vídeo: Instalando a Plataforma Profit', 'https://www.youtube.com/watch?v=qMIFvSUuusY'],
           ['Aprendendo a usar o Profit Pro (Aulas 1-6)', 'https://ajuda.nelogica.com.br/hc/pt-br/articles/360041173631-Aprendendo-a-usar-o-Profit-Pro'],
+          ['B3 Educação — Futuro Mini de Ibovespa (WIN)', 'https://edu.b3.com.br/w/mini-indice'],
+          ['B3 Educação — Futuro Mini de Dólar (WDO)', 'https://edu.b3.com.br/w/mini-dolar'],
         ],
       },
       {
