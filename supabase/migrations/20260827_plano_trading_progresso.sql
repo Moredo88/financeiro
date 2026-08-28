@@ -1,6 +1,6 @@
 -- ============================================================
 -- Progresso do Plano de Trading: quais tarefas diarias da trilha
--- de 12 semanas (app/(app)/plano-trading/page.tsx) o usuario ja
+-- de 13 semanas (app/(app)/plano-trading/page.tsx) o usuario ja
 -- marcou como concluidas
 -- ============================================================
 --

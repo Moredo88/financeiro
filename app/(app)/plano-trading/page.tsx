@@ -111,6 +111,38 @@ const DATA: Fase[] = [
         resources: [['Profit Training (simulador)', 'https://www.nelogica.com.br/produtos/profit-training']],
       },
       {
+        name: 'Scalping: operações de curtíssimo prazo',
+        tasks: [
+          [
+            'Seg',
+            'Estudar o conceito de scalping (múltiplas entradas, alvos de 1 a poucos ticks, alta frequência) e os requisitos de capital, tempo e disciplina da modalidade',
+          ],
+          ['Ter', 'Configurar o Profit Pro para scalping: DOM/Super DOM, atalhos de teclado e execução de um clique, testando em conta demo'],
+          [
+            'Qua',
+            'Conteúdo avançado: order flow com footprint chart e Delta/CVD (Cumulative Volume Delta) — identificar absorção e exaustão de fluxo',
+          ],
+          [
+            'Qui',
+            'Combinar VWAP, correlação WIN/WDO e tape reading em 5 operações simuladas de scalping no Profit Training, com alvo de 2-5 pontos e stop curto',
+          ],
+          [
+            'Sex',
+            'Revisão crítica: comparar os 10 erros mais comuns de scalpers com o próprio diário de trade da semana e ajustar as regras de gestão de risco para curtíssimo prazo',
+          ],
+        ],
+        resources: [
+          ['Vídeo: 3 configurações do Profit para Scalping', 'https://www.youtube.com/watch?v=nEHU1xJjTVA'],
+          ['Vídeo: Scalping — Tape Reading ou Gráfico?', 'https://www.youtube.com/watch?v=4R6E8e2d9fk'],
+          ['Vídeo: Order Flow, Footprint Charts e CVD (avançado)', 'https://www.youtube.com/watch?v=QFpk0ICyCDA'],
+          ['Portal do Trader — Scalpers: quem são e principais técnicas', 'https://portaldotrader.com.br/blog/day-trade/scalpers/'],
+          [
+            'Portal do Trader — 10 erros mais comuns de scalpers',
+            'https://portaldotrader.com.br/aprenda/erros-e-duvidas-de-traders/os-principais-erros-e-duvidas-de-scalper-traders',
+          ],
+        ],
+      },
+      {
         name: 'Backtesting e simulação',
         tasks: [
           ['Seg', 'Configurar um backtest simples de uma estratégia no Profit'],
@@ -214,13 +246,13 @@ const DATA: Fase[] = [
         name: 'Validação final e continuidade',
         tasks: [
           ['Seg', 'Operar 5 sessões simuladas seguindo o plano de trading integralmente'],
-          ['Ter', 'Revisar o diário de trade das últimas 12 semanas e identificar padrões de erro'],
+          ['Ter', 'Revisar o diário de trade das últimas 13 semanas e identificar padrões de erro'],
           ['Qua', 'Calcular métricas finais: taxa de acerto, payoff e drawdown máximo simulado'],
           ['Qui', 'Definir plano de estudo contínuo para os próximos 90 dias'],
           [
             'Sex',
             'checkpoint',
-            'Checkpoint Final — Apresentar um relatório de performance simulada de 12 semanas (taxa de acerto, payoff, drawdown) e um plano de trading escrito antes de considerar operar com capital real',
+            'Checkpoint Final — Apresentar um relatório de performance simulada de 13 semanas (taxa de acerto, payoff, drawdown) e um plano de trading escrito antes de considerar operar com capital real',
           ],
         ],
         resources: [['Profit Training (simulador)', 'https://www.nelogica.com.br/produtos/profit-training']],
@@ -508,9 +540,9 @@ export default function PlanoTradingPage() {
       <div className="pt-eyebrow">Plano de estudo · 1h/dia · Profit Pro</div>
       <h1>Formação em Trading &amp; Operações Estruturadas</h1>
       <p className="pt-sub">
-        Trilha de 12 semanas, com estudo diário de ~1 hora, cobrindo domínio da plataforma Profit Pro, análise
-        técnica e tape reading, derivativos e operações estruturadas com opções, e construção de um plano de
-        trading validado antes de qualquer operação com capital real.
+        Trilha de 13 semanas, com estudo diário de ~1 hora, cobrindo domínio da plataforma Profit Pro, análise
+        técnica, tape reading e scalping, derivativos e operações estruturadas com opções, e construção de um
+        plano de trading validado antes de qualquer operação com capital real.
       </p>
 
       {erro && (
