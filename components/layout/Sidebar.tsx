@@ -19,6 +19,7 @@ import {
   PieChart,
   BarChart3,
   CalendarCheck,
+  FileText,
   BookOpen,
   GraduationCap,
   StickyNote,
@@ -58,6 +59,7 @@ const GRUPOS: NavGroup[] = [
       { name: 'Saldos Mensais', href: '/saldos', icon: CalendarCheck },
       { name: 'Dashboard Estrategia', href: '/estrategia', icon: PieChart },
       { name: 'Dashboard Gestao', href: '/gestao', icon: BarChart3 },
+      { name: 'Relatório de Carteira', href: '/relatorio-carteira', icon: FileText },
     ],
   },
   {

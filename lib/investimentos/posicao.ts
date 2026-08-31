@@ -31,7 +31,17 @@ export interface Posicao {
   rentabilidade: number
 }
 
-const RENDA_FIXA_CLASSES = ['RENDA FIXA', 'ESTRUTURADA', 'FUNDOS INVEST.', 'TESOURO DIRETO', 'COE']
+// PREVIDENCIA nao tem cotacao diaria (cotacao_atual fica nula), entao sem
+// entrar nesta lista o calculo caia no ramo de renda variavel e devolvia
+// valor de mercado zero — a posicao inteira sumia do patrimonio calculado.
+const RENDA_FIXA_CLASSES = [
+  'RENDA FIXA',
+  'ESTRUTURADA',
+  'FUNDOS INVEST.',
+  'TESOURO DIRETO',
+  'COE',
+  'PREVIDÊNCIA',
+]
 
 export function ehClasseRendaFixa(nome: string | null | undefined): boolean {
   if (!nome) return false
