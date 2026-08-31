@@ -24,6 +24,7 @@ import {
   GraduationCap,
   StickyNote,
   Kanban,
+  Workflow,
   X,
 } from 'lucide-react'
 import { useSidebar } from './SidebarProvider'
@@ -264,6 +265,14 @@ export default function Sidebar({ userRole, userEmail }: SidebarProps) {
           {/* Fora dos grupos de trabalho: e ajuda, nao mais uma tela de dado. */}
           {renderNavItem({ name: 'Acoes', href: '/acoes', icon: Kanban })}
           {renderNavItem({ name: 'Manual do Usuario', href: '/manual', icon: BookOpen })}
+          {/* Documento de fluxo publicado como artefato no claude.ai: abre em aba
+              nova e exige estar logado na conta que o publicou. */}
+          {renderNavItem({
+            name: 'Fluxo de Ativos',
+            href: 'https://claude.ai/code/artifact/70ac9de0-1945-479d-9702-72b01ea84ed4',
+            icon: Workflow,
+            external: true,
+          })}
           {userEmail && (
             <div className={clsx('truncate px-3 py-1 text-xs text-slate-400', modoIcone && 'md:hidden')}>
               {userEmail}
