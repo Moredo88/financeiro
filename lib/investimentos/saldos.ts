@@ -117,6 +117,24 @@ export function rendimentoDe(linha: {
   return null
 }
 
+/**
+ * Rendimento percentual de uma linha: o rendimento sobre a base investida
+ * no periodo (saldo anterior + aportes - resgates), mesma regra usada na
+ * serie agregada de resumirPorCompetencia. Null quando o rendimento em R$
+ * tambem e null, ou quando a base fica <= 0 (percentual sem sentido).
+ */
+export function rentabilidadeDe(linha: {
+  saldo_anterior: number | null
+  aportes_mes: number
+  resgates_mes: number
+  rendimento: number | null
+}): number | null {
+  const { saldo_anterior, aportes_mes, resgates_mes, rendimento } = linha
+  if (rendimento == null) return null
+  const base = (saldo_anterior ?? 0) + aportes_mes - resgates_mes
+  return base > 0 ? rendimento / base : null
+}
+
 export interface ResumoCompetencia {
   competencia: string
   /** Rotulo curto para o eixo dos graficos: 08/26. */

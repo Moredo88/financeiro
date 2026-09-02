@@ -9,6 +9,7 @@ import {
   primeiroDiaUtil,
   proximaCompetencia,
   rendimentoDe,
+  rentabilidadeDe,
   rotuloCompetencia,
   totaisDoPeriodo,
   type Fechamento,
@@ -249,23 +250,31 @@ export default function SaldosPage() {
     const e = edicaoDe(a.id)
     const saldo = paraNumero(e.saldo)
     const anterior = saldosAnteriores.get(a.id) ?? null
+    const aportes = paraNumero(e.aportes) ?? 0
+    const resgates = paraNumero(e.resgates) ?? 0
     const rendimento =
       saldo == null
         ? null
         : rendimentoDe({
             saldo,
             saldo_anterior: anterior,
-            aportes_mes: paraNumero(e.aportes) ?? 0,
-            resgates_mes: paraNumero(e.resgates) ?? 0,
+            aportes_mes: aportes,
+            resgates_mes: resgates,
             proventos_mes: paraNumero(e.proventos) ?? 0,
           })
-    return { ativo: a, edicao: e, saldo, anterior, rendimento }
+    const rentabilidade = rentabilidadeDe({ saldo_anterior: anterior, aportes_mes: aportes, resgates_mes: resgates, rendimento })
+    return { ativo: a, edicao: e, saldo, anterior, rendimento, rentabilidade }
   })
 
   const preenchidas = linhasGrade.filter((l) => l.saldo != null)
   const pendentes = linhasGrade.filter((l) => l.saldo == null)
   const totalSaldo = preenchidas.reduce((s, l) => s + (l.saldo ?? 0), 0)
   const totalRendimento = preenchidas.reduce((s, l) => s + (l.rendimento ?? 0), 0)
+  const totalBase = preenchidas.reduce(
+    (s, l) => s + (l.anterior ?? 0) + (paraNumero(l.edicao.aportes) ?? 0) - (paraNumero(l.edicao.resgates) ?? 0),
+    0
+  )
+  const totalRentabilidade = fechamentoAnterior && totalBase > 0 ? totalRendimento / totalBase : null
   const porOrigem = (o: OrigemSaldo) => preenchidas.filter((l) => l.edicao.origem === o).length
 
   const ord = useOrdenacao({ campo: 'ticker', direcao: 'asc' })
@@ -278,6 +287,7 @@ export default function SaldosPage() {
       case 'anterior': return l.anterior
       case 'saldo': return l.saldo
       case 'rendimento': return l.rendimento
+      case 'rentabilidade': return l.rentabilidade
       case 'origem': return l.saldo == null ? null : l.edicao.origem
       default: return null
     }
@@ -539,6 +549,7 @@ export default function SaldosPage() {
         { header: 'Resgates', width: 14, value: (l) => paraNumero(l.edicao.resgates) },
         { header: 'Proventos', width: 14, value: (l) => paraNumero(l.edicao.proventos) },
         { header: 'Rendimento', width: 16, value: (l) => l.rendimento },
+        { header: 'Rendimento %', width: 14, value: (l) => (l.rentabilidade != null ? Math.round(l.rentabilidade * 10000) / 100 : null) },
         { header: 'Origem', width: 12, value: (l) => (l.saldo == null ? 'Pendente' : l.edicao.origem) },
       ],
       linhasOrdenadas
@@ -698,6 +709,7 @@ export default function SaldosPage() {
                     <th className="px-3 py-3 font-medium text-slate-600 text-right">Resgates</th>
                     <th className="px-3 py-3 font-medium text-slate-600 text-right">Proventos</th>
                     <Th campo="rendimento" ordem={ord.ordem} aoOrdenar={ord.alternar} alinhamento="right">Rendimento</Th>
+                    <Th campo="rentabilidade" ordem={ord.ordem} aoOrdenar={ord.alternar} alinhamento="right">Rendimento %</Th>
                     <Th campo="origem" ordem={ord.ordem} aoOrdenar={ord.alternar} alinhamento="center">Origem</Th>
                   </tr>
                 </thead>
@@ -745,6 +757,11 @@ export default function SaldosPage() {
                       }`}>
                         {l.rendimento == null ? '-' : moeda(l.rendimento)}
                       </td>
+                      <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${
+                        l.rentabilidade == null ? 'text-slate-300' : l.rentabilidade >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {l.rentabilidade == null ? '-' : `${(l.rentabilidade * 100).toFixed(2)}%`}
+                      </td>
                       <td className="px-3 py-2 text-center">
                         {l.saldo == null ? (
                           <Badge className="bg-amber-100 text-amber-700">Pendente</Badge>
@@ -762,6 +779,9 @@ export default function SaldosPage() {
                     <td colSpan={3} />
                     <td className={`px-3 py-3 text-right ${totalRendimento >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                       {fechamentoAnterior ? moeda(totalRendimento) : '-'}
+                    </td>
+                    <td className={`px-3 py-3 text-right ${totalRentabilidade != null && totalRentabilidade >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      {totalRentabilidade != null ? `${(totalRentabilidade * 100).toFixed(2)}%` : '-'}
                     </td>
                     <td />
                   </tr>
