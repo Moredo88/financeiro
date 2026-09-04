@@ -70,15 +70,6 @@ const LIQUIDEZ_OPTIONS = [
   { value: 'Baixa', label: 'Baixa' },
 ]
 
-const INDEXADOR_OPTIONS = [
-  { value: 'PRÉ-FIX', label: 'PRÉ-FIX' },
-  { value: 'PÓS-FIX (CDI)', label: 'PÓS-FIX (CDI)' },
-  { value: 'IPCA (INFLAÇÃO)', label: 'IPCA (INFLAÇÃO)' },
-  { value: 'SEM RETORNO', label: 'SEM RETORNO' },
-  { value: 'VARIÁVEL', label: 'VARIÁVEL' },
-  { value: 'DÓLAR', label: 'DÓLAR' },
-]
-
 // Amortizacao e Juros compartilham a mesma periodicidade.
 const PERIODICIDADE_OPTIONS = [
   { value: 'Vencimento', label: 'Vencimento' },
@@ -95,7 +86,6 @@ const emptyForm = {
   liquidez: '',
   retorno_12m: '',
   preco_teto: '',
-  indexador: '',
   amortizacao: '',
   juros: '',
   data_liquidacao: '',
@@ -202,7 +192,6 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
       liquidez: a.liquidez ?? '',
       retorno_12m: a.retorno_12m != null ? String(a.retorno_12m) : '',
       preco_teto: a.preco_teto != null ? String(a.preco_teto) : '',
-      indexador: a.indexador ?? '',
       amortizacao: a.amortizacao ?? '',
       juros: a.juros ?? '',
       data_liquidacao: a.data_liquidacao ?? '',
@@ -241,7 +230,6 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
       liquidez: form.liquidez || null,
       retorno_12m: form.retorno_12m ? parseFloat(form.retorno_12m) : null,
       preco_teto: form.preco_teto ? parseFloat(form.preco_teto) : null,
-      indexador: form.indexador || null,
       amortizacao: form.amortizacao || null,
       juros: form.juros || null,
       data_liquidacao: form.data_liquidacao || null,
@@ -438,14 +426,6 @@ function AtivosParametros({ supabase }: { supabase: ReturnType<typeof createClie
             <div className="pt-4 border-t border-slate-200">
               <p className="text-sm font-semibold text-slate-900 mb-3">Renda Fixa</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  id="rf-indexador"
-                  label="Indexador"
-                  options={INDEXADOR_OPTIONS}
-                  placeholder="Selecione..."
-                  value={form.indexador}
-                  onChange={(e) => updateForm('indexador', e.target.value)}
-                />
                 <Select
                   id="rf-amortizacao"
                   label="Amortizacao"

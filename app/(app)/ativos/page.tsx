@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { ehClasseRendaFixa } from '@/lib/investimentos/posicao'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -62,6 +63,15 @@ function ehRendaVariavel(nome: string | null | undefined) {
   return nome.trim().toUpperCase().startsWith('RENDA VAR')
 }
 
+const INDEXADOR_OPTIONS = [
+  { value: 'PRÉ-FIX', label: 'PRÉ-FIX' },
+  { value: 'PÓS-FIX (CDI)', label: 'PÓS-FIX (CDI)' },
+  { value: 'IPCA (INFLAÇÃO)', label: 'IPCA (INFLAÇÃO)' },
+  { value: 'SEM RETORNO', label: 'SEM RETORNO' },
+  { value: 'VARIÁVEL', label: 'VARIÁVEL' },
+  { value: 'DÓLAR', label: 'DÓLAR' },
+]
+
 const emptyForm = {
   ticker: '',
   nome: '',
@@ -76,6 +86,7 @@ const emptyForm = {
   data_aquisicao: '',
   status: 'Ativo',
   taxa: '',
+  indexador: '',
   data_vencimento: '',
 }
 
@@ -179,6 +190,7 @@ export default function AtivosPage() {
       data_aquisicao: a.data_aquisicao ?? '',
       status: a.status,
       taxa: a.taxa != null ? String(a.taxa) : '',
+      indexador: a.indexador ?? '',
       data_vencimento: a.data_vencimento ?? '',
     })
     setModalOpen(true)
@@ -202,6 +214,7 @@ export default function AtivosPage() {
       data_aquisicao: form.data_aquisicao || null,
       status: form.status,
       taxa: form.taxa ? parseFloat(form.taxa) : null,
+      indexador: form.indexador || null,
       data_vencimento: form.data_vencimento || null,
     }
 
@@ -283,6 +296,9 @@ export default function AtivosPage() {
 
   const rendaVariavel = ativosFiltrados.filter((a) => ehRendaVariavel(a.classes_ativo?.nome))
   const demais = ativosFiltrados.filter((a) => !ehRendaVariavel(a.classes_ativo?.nome))
+
+  const classeFormSelecionada = classes.find((c) => c.id === form.classe_id)?.nome
+  const ehRendaFixaForm = ehClasseRendaFixa(classeFormSelecionada)
 
   return (
     <div className="space-y-6">
@@ -461,6 +477,16 @@ export default function AtivosPage() {
             value={form.data_vencimento}
             onChange={(e) => updateForm('data_vencimento', e.target.value)}
           />
+          {ehRendaFixaForm && (
+            <Select
+              id="f-indexador"
+              label="Indexador"
+              options={INDEXADOR_OPTIONS}
+              placeholder="Selecione..."
+              value={form.indexador}
+              onChange={(e) => updateForm('indexador', e.target.value)}
+            />
+          )}
           <Select
             id="f-status"
             label="Status"
