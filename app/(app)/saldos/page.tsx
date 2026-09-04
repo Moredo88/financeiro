@@ -35,6 +35,7 @@ interface AtivoRow {
   nome: string | null
   status: string
   classes_ativo: { nome: string } | null
+  categorias_ativo: { nome: string } | null
   bancos_corretoras: { nome: string } | null
 }
 
@@ -162,7 +163,7 @@ export default function SaldosPage() {
         supabase.from('feriados').select('data'),
         supabase
           .from('ativos')
-          .select('id, ticker, nome, status, classes_ativo(nome), bancos_corretoras(nome)')
+          .select('id, ticker, nome, status, classes_ativo(nome), categorias_ativo(nome), bancos_corretoras(nome)')
           .order('ticker'),
         supabase.from('fechamentos').select('*').order('competencia', { ascending: false }),
       ])
@@ -283,6 +284,7 @@ export default function SaldosPage() {
       case 'ticker': return l.ativo.ticker
       case 'nome': return l.ativo.nome
       case 'classe': return l.ativo.classes_ativo?.nome
+      case 'categoria': return l.ativo.categorias_ativo?.nome
       case 'corretora': return l.ativo.bancos_corretoras?.nome
       case 'anterior': return l.anterior
       case 'saldo': return l.saldo
@@ -541,6 +543,7 @@ export default function SaldosPage() {
         { header: 'Ticker', width: 14, value: (l) => l.ativo.ticker },
         { header: 'Nome', width: 30, value: (l) => l.ativo.nome },
         { header: 'Classe', width: 18, value: (l) => l.ativo.classes_ativo?.nome },
+        { header: 'Categoria', width: 18, value: (l) => l.ativo.categorias_ativo?.nome },
         { header: 'Corretora', width: 14, value: (l) => l.ativo.bancos_corretoras?.nome },
         { header: 'Quantidade', width: 14, value: (l) => paraNumero(l.edicao.quantidade) },
         { header: 'Saldo Anterior', width: 16, value: (l) => l.anterior },
@@ -701,6 +704,7 @@ export default function SaldosPage() {
                   <tr className="border-b border-slate-200 bg-slate-50">
                     <Th campo="ticker" ordem={ord.ordem} aoOrdenar={ord.alternar}>Ticker</Th>
                     <Th campo="classe" ordem={ord.ordem} aoOrdenar={ord.alternar}>Classe</Th>
+                    <Th campo="categoria" ordem={ord.ordem} aoOrdenar={ord.alternar}>Categoria</Th>
                     <Th campo="corretora" ordem={ord.ordem} aoOrdenar={ord.alternar}>Corretora</Th>
                     <th className="px-3 py-3 font-medium text-slate-600 text-right">Quantidade</th>
                     <Th campo="anterior" ordem={ord.ordem} aoOrdenar={ord.alternar} alinhamento="right">Saldo anterior</Th>
@@ -724,6 +728,7 @@ export default function SaldosPage() {
                         {l.ativo.nome && <span className="block text-xs font-normal text-slate-400 truncate max-w-[16rem]">{l.ativo.nome}</span>}
                       </td>
                       <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{l.ativo.classes_ativo?.nome}</td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{l.ativo.categorias_ativo?.nome}</td>
                       <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{l.ativo.bancos_corretoras?.nome}</td>
                       <td className="px-2 py-2">
                         <CampoNumero
@@ -774,7 +779,7 @@ export default function SaldosPage() {
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-50 font-medium text-slate-900">
-                    <td className="px-3 py-3" colSpan={5}>Total</td>
+                    <td className="px-3 py-3" colSpan={6}>Total</td>
                     <td className="px-3 py-3 text-right">{moeda(totalSaldo)}</td>
                     <td colSpan={3} />
                     <td className={`px-3 py-3 text-right ${totalRendimento >= 0 ? 'text-green-700' : 'text-red-600'}`}>
