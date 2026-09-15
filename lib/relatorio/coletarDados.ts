@@ -4,12 +4,15 @@ import { rendimentoDe } from '@/lib/investimentos/saldos'
 import { calcularLimiares, classificarRendaFixa, type BenchmarksEntrada } from './limiares'
 import { setorDoTicker } from './setores'
 import { buckearEconomico } from './carteiraAlvo'
+import { ratingDaPosicao, ORDEM_GRUPOS_RATING } from './ratings'
 import type {
   RelatorioData,
   PosicaoAtivo,
   AlertaQualidade,
   AlocacaoClasse,
   ConcentracaoResumo,
+  ComposicaoCarteira,
+  FatiaCarteira,
   LimiaresIndiferenca,
   Severidade,
 } from './types'
@@ -217,6 +220,7 @@ export async function coletarDadosCarteira(
       proventos: calc.proventos,
       rentabilidade: calc.valorInvestido > 0 ? calc.rentabilidade : null,
       ehRendaFixa,
+      rating: ratingDaPosicao({ ticker: ativo.ticker, classe, categoria }),
     }
 
     if (ehRendaFixa) {
@@ -334,6 +338,8 @@ export async function coletarDadosCarteira(
       .map(([nome, valor]) => ({ nome, valor, percentual: patrimonioAjustado > 0 ? (valor / patrimonioAjustado) * 100 : 0 }))
       .sort((a, b) => b.valor - a.valor),
   }
+
+  const composicao = montarComposicao(posicoesAjustadas, patrimonioAjustado, fechamento.data_posicao)
 
   // --- Demais alertas de qualidade de dado.
   for (const p of posicoesAjustadas) {
@@ -453,6 +459,7 @@ export async function coletarDadosCarteira(
     posicoes: posicoesAjustadas,
     alocacaoPorClasse,
     concentracao,
+    composicao,
     limiares: limiaresCompletos,
     alertas: ordenarAlertas(alertas),
     totais: {
@@ -460,6 +467,145 @@ export async function coletarDadosCarteira(
       ativosComSaldo: posicoesAjustadas.filter((p) => p.valorMercado > 0).length,
       movimentacoes: (movimentacoes ?? []).length,
     },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Recortes do portfolio (classe, vencimento, indexador, rating).
+// Tudo aritmetica pura sobre as posicoes ja ajustadas — a IA so comenta.
+// ---------------------------------------------------------------------------
+
+const FAIXAS_VENCIMENTO = [
+  { nome: 'Já vencido', ate: 0 },
+  { nome: 'Até 12 meses', ate: 1 },
+  { nome: '1 a 3 anos', ate: 3 },
+  { nome: '3 a 5 anos', ate: 5 },
+  { nome: '5 a 10 anos', ate: 10 },
+  { nome: 'Acima de 10 anos', ate: Infinity },
+] as const
+
+const SEM_VENCIMENTO = 'Sem vencimento definido'
+
+/** Anos entre a data de posicao e o vencimento; negativo quando ja venceu. */
+function anosAteVencimento(vencimento: string, dataPosicao: string): number | null {
+  const venc = Date.parse(vencimento)
+  const base = Date.parse(dataPosicao)
+  if (!Number.isFinite(venc) || !Number.isFinite(base)) return null
+  return (venc - base) / (365.25 * 24 * 60 * 60 * 1000)
+}
+
+function faixaDeVencimento(anos: number): string {
+  if (anos < 0) return 'Já vencido'
+  return FAIXAS_VENCIMENTO.find((f) => anos <= f.ate)?.nome ?? 'Acima de 10 anos'
+}
+
+/** Agrega valor e contagem por chave e devolve as fatias com os dois percentuais. */
+function fatiar(
+  itens: { chave: string; valor: number }[],
+  patrimonio: number,
+  universo: number | null,
+  ordem?: readonly string[]
+): FatiaCarteira[] {
+  const acc = new Map<string, { valor: number; posicoes: number }>()
+  for (const i of itens) {
+    const atual = acc.get(i.chave) ?? { valor: 0, posicoes: 0 }
+    acc.set(i.chave, { valor: atual.valor + i.valor, posicoes: atual.posicoes + 1 })
+  }
+
+  const fatias = Array.from(acc.entries()).map(([nome, v]) => ({
+    nome,
+    valor: v.valor,
+    posicoes: v.posicoes,
+    percentual: patrimonio > 0 ? (v.valor / patrimonio) * 100 : 0,
+    percentualUniverso: universo && universo > 0 ? (v.valor / universo) * 100 : null,
+  }))
+
+  if (ordem) {
+    return fatias.sort((a, b) => {
+      const ia = ordem.indexOf(a.nome)
+      const ib = ordem.indexOf(b.nome)
+      return (ia < 0 ? ordem.length : ia) - (ib < 0 ? ordem.length : ib)
+    })
+  }
+  return fatias.sort((a, b) => b.valor - a.valor)
+}
+
+export function montarComposicao(
+  posicoes: PosicaoAtivo[],
+  patrimonio: number,
+  dataPosicao: string
+): ComposicaoCarteira {
+  const comSaldo = posicoes.filter((p) => p.valorMercado > 0)
+
+  const maioresPosicoes = [...comSaldo]
+    .sort((a, b) => b.valorMercado - a.valorMercado)
+    .slice(0, 10)
+    .map((p) => ({
+      ativoId: p.ativoId,
+      ticker: p.ticker,
+      nome: p.nome,
+      classeEconomica: buckearEconomico({
+        classe: p.classe,
+        categoria: p.categoria,
+        ehExterior: ehExteriorSetor(p.ticker),
+      }),
+      valor: p.valorMercado,
+      percentual: patrimonio > 0 ? (p.valorMercado / patrimonio) * 100 : 0,
+    }))
+
+  // --- Vencimento: todo o patrimonio, para a escada fechar em 100%.
+  const itensVencimento = comSaldo.map((p) => {
+    const anos = p.vencimento ? anosAteVencimento(p.vencimento, dataPosicao) : null
+    return { chave: anos == null ? SEM_VENCIMENTO : faixaDeVencimento(anos), valor: p.valorMercado, anos }
+  })
+  const porVencimento = fatiar(itensVencimento, patrimonio, null, [
+    ...FAIXAS_VENCIMENTO.map((f) => f.nome),
+    SEM_VENCIMENTO,
+  ])
+
+  const comPrazo = itensVencimento.filter((i) => i.anos != null && i.anos >= 0) as {
+    chave: string
+    valor: number
+    anos: number
+  }[]
+  const valorComPrazo = comPrazo.reduce((s, i) => s + i.valor, 0)
+  const prazoMedioAnos =
+    valorComPrazo > 0 ? comPrazo.reduce((s, i) => s + i.anos * i.valor, 0) / valorComPrazo : null
+  const vencendoEm12m = comPrazo.filter((i) => i.anos <= 1).reduce((s, i) => s + i.valor, 0)
+
+  // --- Indexador e rating: so papeis com remuneracao contratada.
+  const credito = comSaldo.filter((p) => p.ehRendaFixa && p.indexador)
+  const valorCredito = credito.reduce((s, p) => s + p.valorMercado, 0)
+  const valorSemIndexador = comSaldo
+    .filter((p) => p.ehRendaFixa && !p.indexador)
+    .reduce((s, p) => s + p.valorMercado, 0)
+
+  const porIndexador = fatiar(
+    credito.map((p) => ({ chave: p.indexador ?? 'Não cadastrado', valor: p.valorMercado })),
+    patrimonio,
+    valorCredito
+  )
+
+  const porRating = fatiar(
+    credito.map((p) => ({ chave: p.rating?.grupo ?? 'Sem rating informado', valor: p.valorMercado })),
+    patrimonio,
+    valorCredito,
+    ORDEM_GRUPOS_RATING
+  )
+
+  return {
+    maioresPosicoes,
+    porVencimento,
+    porIndexador,
+    porRating,
+    universoCredito: {
+      valor: valorCredito,
+      percentual: patrimonio > 0 ? (valorCredito / patrimonio) * 100 : 0,
+      posicoes: credito.length,
+      valorSemIndexador,
+    },
+    prazoMedioAnos,
+    vencendoEm12mPct: patrimonio > 0 ? (vencendoEm12m / patrimonio) * 100 : 0,
   }
 }
 

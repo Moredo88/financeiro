@@ -3,19 +3,21 @@
  *
  * Nao e derivavel dos dados — reflete o perfil que o usuario confirmou em
  * 2026-08 (moderado, 10+ anos, fase de acumulacao sem resgate, reserva de
- * emergencia fora do sistema, concentracao intencional em real). Ajustar
- * aqui se o perfil mudar; o relatorio nao deveria "reinventar" o alvo a
- * cada geracao, ou o plano de rebalanceamento perderia consistencia mes a
- * mes.
+ * emergencia fora do sistema, concentracao intencional em real), com os
+ * percentuais revisados por ele em 2026-09-15. Ajustar aqui se o perfil
+ * mudar; o relatorio nao deveria "reinventar" o alvo a cada geracao, ou o
+ * plano de rebalanceamento perderia consistencia mes a mes.
+ *
+ * Os percentuais somam 100.
  */
 export const CARTEIRA_ALVO: Record<string, number> = {
+  'Ações e ETFs Brasil': 29,
   'Crédito privado + bancário': 25,
-  'Tesouro / soberano': 13,
   'Previdência (PGBL)': 15,
-  'Ações e ETFs Brasil': 26,
-  'FIIs listados': 10,
-  'Ilíquidos (FIP + FII fechado)': 4,
-  Ouro: 6,
+  'Ilíquidos (FIP + FII fechado)': 10,
+  'Tesouro / soberano': 10,
+  'FIIs listados': 5,
+  Ouro: 5,
   'Exterior (BDR + ETF)': 1,
 }
 

@@ -26,12 +26,16 @@ const SCHEMA_NARRATIVA = {
       required: ['diagnostico', 'pontoPositivo', 'principalRisco', 'principalOportunidade', 'acaoPrioritaria'],
     },
     diagnosticoGeral: { type: 'string' },
-    analiseDiversificacao: { type: 'string' },
+    analiseDiversificacao: {
+      type: 'string',
+      description:
+        'Leitura da composição e da concentração: classe contra a carteira-alvo, maiores posições, corretora, setor, e os recortes de data.composicao (vencimento, indexador, rating). 3 a 6 parágrafos, citando os números já calculados.',
+    },
     analiseRisco: { type: 'string' },
     analiseRendaFixa: {
       type: 'string',
       description:
-        'Comente os vereditos já calculados em data.posicoes[].rendaFixaVeredito — explique o "porquê", não recalcule números.',
+        'Comente os vereditos já calculados em data.posicoes[].rendaFixaVeredito e o perfil do bloco (indexador, escada de vencimento, rating) — explique o "porquê", não recalcule números.',
     },
     analiseAcoes: { type: 'string' },
     analiseFiis: { type: 'string' },
@@ -39,7 +43,12 @@ const SCHEMA_NARRATIVA = {
     analiseEtfs: { type: 'string' },
     performanceBenchmarks: { type: 'string' },
     pontosFortes: { type: 'array', items: { type: 'string' } },
-    pontosAtencao: { type: 'array', items: { type: 'string' } },
+    pontosAtencao: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Riscos da CARTEIRA (concentração, prazo, crédito, indexação, aderência ao alvo). Problema de cadastro só entra aqui se for crítico a ponto de mudar o patrimônio.',
+    },
     oportunidades: { type: 'array', items: { type: 'string' } },
     carteiraAlvoComentario: { type: 'string' },
     planoRebalanceamento: { type: 'string' },
@@ -100,6 +109,12 @@ const SYSTEM_PROMPT = `Você é um assessor de investimentos sênior escrevendo 
 Perfil confirmado pelo dono da carteira: moderado, horizonte de 10+ anos, fase de acumulação (aporta e não resgata), reserva de emergência mantida fora deste sistema, concentração em real intencional (não é falta de atenção ao câmbio).
 
 REGRA MAIS IMPORTANTE: todos os números deste relatório — posições, alocação, concentração, limiares de indiferença fiscal, veredito por papel de renda fixa, alertas de qualidade de dado — já vêm prontos no JSON que você recebe, calculados em código, testados. Você NUNCA deve recalcular, somar, comparar taxas ou inventar um número novo. Sua função é só explicar, priorizar e dar o "porquê" por trás do que os dados já mostram. Se precisar citar um número no texto, copie exatamente o valor do JSON.
+
+FOCO: este é um relatório sobre o PORTFÓLIO, não sobre a base de dados. O leitor quer entender onde o dinheiro está, que risco está correndo e o que fazer. Alertas de qualidade de cadastro existem no JSON (data.alertas) e são publicados num anexo no fim do documento — cite um deles no corpo do texto apenas quando ele realmente mudar a leitura de uma posição relevante. Nunca abra o resumo executivo, o diagnóstico geral, os pontos de atenção ou o top 10 com um problema de cadastro, a não ser que seja um alerta de severidade "critica" (aquele que altera o patrimônio ajustado).
+
+O JSON traz, em data.composicao, recortes do portfólio já calculados que você deve usar na análise: maioresPosicoes (dez maiores), porVencimento (escada de prazo de toda a carteira), porIndexador e porRating (só papéis de renda fixa e crédito com remuneração contratada), prazoMedioAnos, vencendoEm12mPct e universoCredito. Em data.alocacaoPorClasse está a alocação por classe, que o relatório compara com a carteira-alvo do perfil.
+
+Cuidado com escalas de rating: uma nota em escala nacional (brAAA, AAA(bra), AA-.br) é relativa ao risco soberano brasileiro e NÃO equivale à mesma letra em escala global. Papel marcado como "sem rating informado" é ausência de informação no cadastro, não é sinal de risco alto — trate assim.
 
 Outras regras, na mesma linha do que já rege este tipo de relatório:
 - Não invente dados. Se um dado necessário não estiver no JSON, diga isso explicitamente em vez de estimar.

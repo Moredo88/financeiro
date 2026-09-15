@@ -1,6 +1,13 @@
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { CARTEIRA_ALVO } from './carteiraAlvo'
-import type { RelatorioData, RelatorioNarrativa, PosicaoAtivo, AlertaQualidade, Severidade } from './types'
+import type {
+  RelatorioData,
+  RelatorioNarrativa,
+  PosicaoAtivo,
+  AlertaQualidade,
+  FatiaCarteira,
+  Severidade,
+} from './types'
 
 export interface RenderOpcoes {
   /** Quando true, todo valor monetário sai como % do patrimônio ajustado em vez de R$. */
@@ -31,6 +38,11 @@ function sinalPP(v: number | null | undefined): string {
   return s + Math.abs(v).toFixed(2).replace('.', ',') + ' p.p.'
 }
 
+function anosBr(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return '—'
+  return v.toFixed(1).replace('.', ',') + (Math.abs(v) >= 2 ? ' anos' : ' ano')
+}
+
 function dataBr(iso: string | null | undefined): string {
   if (!iso) return '—'
   try {
@@ -40,12 +52,25 @@ function dataBr(iso: string | null | undefined): string {
   }
 }
 
+/** Barra proporcional dentro de uma célula de tabela. */
+function barra(pct: number | null | undefined, cor = 'var(--accent)'): string {
+  const v = pct != null && Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0
+  return `<span class="bar"><i style="width:${v.toFixed(1)}%;background:${cor}"></i></span>`
+}
+
+const CORES_CLASSE = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)', 'var(--c7)', 'var(--c8)']
+function corDaClasse(i: number): string {
+  return CORES_CLASSE[i % CORES_CLASSE.length]
+}
+
 const SEVERIDADE_LABEL: Record<Severidade, string> = {
   critica: 'Crítica',
   elevada: 'Elevada',
   moderada: 'Moderada',
   baixa: 'Baixa',
 }
+const SEVERIDADE_CHIP: Record<Severidade, string> = { critica: 'r', elevada: 'y', moderada: 'n', baixa: 'n' }
+
 const VEREDICTO_LABEL: Record<string, string> = {
   manter: 'Manter',
   avaliar: 'Avaliar',
@@ -58,6 +83,7 @@ const VEREDICTO_CHIP: Record<string, string> = {
   reduzir: 'r',
   nao_avaliavel: 'n',
 }
+const VEREDICTO_STRIPE: Record<string, string> = { manter: 'good', avaliar: 'warn', reduzir: 'crit', nao_avaliavel: '' }
 
 const PRIORIDADE_LABEL: Record<string, string> = { alta: 'Alta prioridade', media: 'Média prioridade', baixa: 'Baixa prioridade' }
 const PRIORIDADE_CHIP: Record<string, string> = { alta: 'r', media: 'y', baixa: 'n' }
@@ -67,12 +93,51 @@ function chip(classe: string, texto: string): string {
   return `<span class="chip ${classe}">${esc(texto)}</span>`
 }
 
+function paragrafos(texto: string | null | undefined): string {
+  if (!texto) return ''
+  return esc(texto)
+    .split(/\n{2,}/)
+    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .join('')
+}
+
+/** Cabeçalho de seção, com a numeração do índice. */
+function sec(n: string, titulo: string, corpo: string): string {
+  return `<section id="s${n}"><div class="sec-head"><span class="sec-num">${n}</span><h2>${esc(titulo)}</h2></div>
+${corpo}
+</section>`
+}
+
+type ValorCel = (v: number | null | undefined) => string
+
 // ------------------------------------------------------------- construtor
+
+const INDICE: [string, string][] = [
+  ['01', 'Visão executiva'],
+  ['02', 'Diagnóstico geral'],
+  ['03', 'Composição da carteira'],
+  ['04', 'Concentração'],
+  ['05', 'Renda fixa e crédito'],
+  ['06', 'Manter, avaliar, reduzir'],
+  ['07', 'Ações e ETFs'],
+  ['08', 'FIIs'],
+  ['09', 'Exterior'],
+  ['10', 'Risco'],
+  ['11', 'Performance'],
+  ['12', 'Fortes e atenção'],
+  ['13', 'Oportunidades'],
+  ['14', 'Rebalanceamento'],
+  ['15', 'Plano de ação'],
+  ['16', 'Top 10'],
+  ['17', 'Conclusão'],
+  ['18', 'Anexo técnico'],
+]
 
 export function renderRelatorioHtml(data: RelatorioData, narrativa: RelatorioNarrativa, opcoes: RenderOpcoes): string {
   const total = data.patrimonioAjustado
+  const comp = data.composicao
 
-  function valorCel(v: number | null | undefined): string {
+  const valorCel: ValorCel = (v) => {
     if (v == null || !Number.isFinite(v)) return '—'
     if (opcoes.ocultarValores) {
       const p = total > 0 ? (v / total) * 100 : 0
@@ -82,42 +147,32 @@ export function renderRelatorioHtml(data: RelatorioData, narrativa: RelatorioNar
   }
 
   const secoes = [
-    secaoVisaoExecutiva(data, narrativa, valorCel),
-    secaoQualidadeDados(data, valorCel),
+    secaoVisaoExecutiva(data, narrativa),
     secaoDiagnostico(narrativa),
-    secaoAlocacao(data, valorCel),
-    secaoDiversificacao(data, narrativa, valorCel),
-    secaoRisco(narrativa),
+    secaoComposicao(data, valorCel),
+    secaoConcentracao(data, narrativa, valorCel),
     secaoRendaFixa(data, narrativa, valorCel),
+    secaoListasRendaFixa(data, valorCel),
     secaoAcoes(data, narrativa, valorCel),
     secaoFiis(data, narrativa, valorCel),
-    secaoInternacional(narrativa),
-    secaoEtfs(narrativa),
+    secaoExterior(narrativa),
+    secaoRisco(narrativa),
     secaoPerformance(data, narrativa),
-    secaoPontosFortes(narrativa),
-    secaoPontosAtencao(narrativa, data),
-    secaoListasRendaFixa(data, valorCel),
+    secaoFortesAtencao(narrativa),
     secaoOportunidades(narrativa),
-    secaoCarteiraAlvo(data, narrativa),
     secaoRebalanceamento(narrativa),
     secaoPlanoAcao(narrativa),
     secaoTop10(narrativa),
-    secaoRiscosPremissas(data, narrativa),
     secaoConclusao(narrativa),
+    secaoAnexo(data, narrativa, valorCel),
   ]
 
-  const indice = [
-    '01·Visão executiva', '02·Qualidade dos dados', '03·Diagnóstico', '04·Alocação atual',
-    '05·Diversificação', '06·Risco', '07·Renda fixa', '08·Ações', '09·FIIs', '10·Internacional',
-    '11·ETFs', '12·Performance', '13·Pontos fortes', '14·Pontos de atenção', '15·Aumentar/Manter/Reduzir',
-    '16·Oportunidades', '17·Carteira-alvo', '18·Rebalanceamento', '19·Plano de ação', '20·Top 10',
-    '21·Riscos e premissas', '22·Conclusão',
-  ]
-    .map((t) => {
-      const [n, label] = t.split('·')
-      return `<li><a href="#s${n}"><i>${n}</i>${esc(label)}</a></li>`
-    })
-    .join('')
+  const indice = INDICE.map(([n, label]) => `<li><a href="#s${n}"><i>${n}</i>${esc(label)}</a></li>`).join('')
+
+  const ajusteRegistrado =
+    Math.abs(data.patrimonioRegistrado - data.patrimonioAjustado) > 1
+      ? `<small>Registrado no sistema ${valorCel(data.patrimonioRegistrado)} — ver anexo</small>`
+      : '<small>Base de 100% deste relatório</small>'
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -142,10 +197,10 @@ export function renderRelatorioHtml(data: RelatorioData, narrativa: RelatorioNar
 </header>
 
 <dl class="ledger">
-  <div class="lead"><dt>Patrimônio ajustado</dt><dd>${valorCel(data.patrimonioAjustado)}<small>Base de 100% deste relatório</small></dd></div>
-  <div><dt>Registrado no sistema</dt><dd>${valorCel(data.patrimonioRegistrado)}<small>Antes dos ajustes de qualidade de dado</small></dd></div>
-  <div><dt>Ativos com saldo</dt><dd>${data.totais.ativosComSaldo}<small>de ${data.totais.ativos} cadastrados</small></dd></div>
-  <div><dt>Alertas críticos</dt><dd>${data.alertas.filter((a) => a.severidade === 'critica').length}<small>de ${data.alertas.length} no total</small></dd></div>
+  <div class="lead"><dt>Patrimônio</dt><dd>${valorCel(data.patrimonioAjustado)}${ajusteRegistrado}</dd></div>
+  <div><dt>Posições com saldo</dt><dd>${data.totais.ativosComSaldo}<small>de ${data.totais.ativos} ativos cadastrados</small></dd></div>
+  <div><dt>Maior posição</dt><dd>${pct1(data.concentracao.maiorPosicaoPct)}<small>Top 10 somam ${pct1(data.concentracao.top10Pct)}</small></dd></div>
+  <div><dt>Renda fixa e crédito</dt><dd>${comp ? pct1(comp.universoCredito.percentual) : '—'}<small>${comp ? 'Prazo médio ' + anosBr(comp.prazoMedioAnos) : 'Recorte indisponível'}</small></dd></div>
 </dl>
 
 <div class="layout">
@@ -153,7 +208,7 @@ export function renderRelatorioHtml(data: RelatorioData, narrativa: RelatorioNar
 <main>
 ${secoes.join('\n')}
 <footer>
-  <p>Relatório gerado automaticamente pelo sistema financeiro pessoal, competência ${esc(rotuloCompetencia(data.competencia))}. Toda a aritmética (posições, alocação, limiares de indiferença fiscal, veredito por papel) é calculada em código; a IA escreve apenas a análise textual, a partir desses números.</p>
+  <p>Relatório gerado automaticamente pelo sistema financeiro pessoal, competência ${esc(rotuloCompetencia(data.competencia))}. Toda a aritmética (posições, alocação, composição, concentração, limiares de indiferença fiscal, veredito por papel) é calculada em código; a IA escreve apenas a análise textual, a partir desses números.</p>
   <p>Documento analítico de uso pessoal. Não constitui recomendação personalizada de investimento, oferta de valores mobiliários ou promessa de rentabilidade.</p>
 </footer>
 </main>
@@ -171,103 +226,200 @@ function rotuloCompetencia(iso: string): string {
 
 // --------------------------------------------------------------- seções
 
-function secaoVisaoExecutiva(data: RelatorioData, n: RelatorioNarrativa, valorCel: (v: number) => string): string {
-  const linhas = data.alocacaoPorClasse
-    .map(
-      (c) =>
-        `<tr><td>${esc(c.classe)}</td><td class="r num">${valorCel(c.valor)}</td><td class="r num">${pct1(c.percentual)}</td></tr>`
-    )
+function secaoVisaoExecutiva(data: RelatorioData, n: RelatorioNarrativa): string {
+  const classes = data.alocacaoPorClasse.filter((c) => c.percentual > 0)
+  const tiras = classes
+    .map((c, i) => `<span style="width:${Math.max(0, c.percentual).toFixed(2)}%;background:${corDaClasse(i)}" title="${esc(c.classe)}"></span>`)
+    .join('')
+  const legenda = classes
+    .map((c, i) => `<li><span class="dot" style="background:${corDaClasse(i)}"></span>${esc(c.classe)} <b>${pct1(c.percentual)}</b></li>`)
     .join('')
 
-  return `<section id="s01"><div class="sec-head"><span class="sec-num">01</span><h2>Visão executiva</h2></div>
-  <div class="prose"><p>${esc(n.resumoExecutivo.diagnostico)}</p></div>
-  <div class="tw"><table><thead><tr><th>Classe</th><th class="r">Valor</th><th class="r">%</th></tr></thead><tbody>${linhas}</tbody>
-  <tfoot><tr><td>Total</td><td class="r num">${valorCel(data.patrimonioAjustado)}</td><td class="r num">100,0%</td></tr></tfoot></table></div>
+  return sec(
+    '01',
+    'Visão executiva',
+    `<div class="prose">${paragrafos(n.resumoExecutivo.diagnostico)}</div>
+  <div class="stack" role="img" aria-label="Composição da carteira por classe">${tiras}</div>
+  <ul class="legend">${legenda}</ul>
   <div class="split">
     <div class="panel"><p class="pt">Principal ponto positivo</p><p>${esc(n.resumoExecutivo.pontoPositivo)}</p></div>
     <div class="panel"><p class="pt">Principal risco</p><p>${esc(n.resumoExecutivo.principalRisco)}</p></div>
     <div class="panel"><p class="pt">Principal oportunidade</p><p>${esc(n.resumoExecutivo.principalOportunidade)}</p></div>
     <div class="panel"><p class="pt">Ação prioritária</p><p>${esc(n.resumoExecutivo.acaoPrioritaria)}</p></div>
-  </div>
-  </section>`
-}
-
-function secaoQualidadeDados(data: RelatorioData, valorCel: (v: number) => string): string {
-  const criticos = data.alertas.filter((a) => a.severidade === 'critica')
-  const resto = data.alertas.filter((a) => a.severidade !== 'critica')
-
-  function linhaAlerta(a: AlertaQualidade): string {
-    return `<div class="callout ${a.severidade === 'critica' ? 'crit' : a.severidade === 'elevada' ? 'warn' : ''}">
-      <span class="ct">${SEVERIDADE_LABEL[a.severidade]}${a.valorEnvolvido != null ? ' · ' + valorCel(a.valorEnvolvido) : ''}</span>
-      <p><strong>${esc(a.titulo)}</strong></p><p>${esc(a.descricao)}</p>
-    </div>`
-  }
-
-  return `<section id="s02"><div class="sec-head"><span class="sec-num">02</span><h2>Resumo da carteira e qualidade dos dados</h2></div>
-  <div class="prose"><p>Base: ${data.totais.ativos} ativos cadastrados, ${data.totais.ativosComSaldo} com saldo de mercado, ${data.totais.movimentacoes} movimentações. Patrimônio registrado ${valorCel(data.patrimonioRegistrado)}; patrimônio ajustado (usado no resto deste relatório) ${valorCel(data.patrimonioAjustado)}.</p></div>
-  ${criticos.length ? criticos.map(linhaAlerta).join('') : '<div class="callout good"><span class="ct">Sem bloqueios</span><p>Nenhum alerta crítico neste mês.</p></div>'}
-  ${resto.length ? `<h3>Demais observações de qualidade de dado</h3>${resto.map(linhaAlerta).join('')}` : ''}
-  </section>`
+  </div>`
+  )
 }
 
 function secaoDiagnostico(n: RelatorioNarrativa): string {
-  return `<section id="s03"><div class="sec-head"><span class="sec-num">03</span><h2>Diagnóstico geral</h2></div>
-  <div class="prose"><p>${esc(n.diagnosticoGeral).replace(/\n\n/g, '</p><p>')}</p></div>
-  </section>`
+  return sec('02', 'Diagnóstico geral', `<div class="prose">${paragrafos(n.diagnosticoGeral)}</div>`)
 }
 
-function secaoAlocacao(data: RelatorioData, valorCel: (v: number) => string): string {
-  const linhas = data.alocacaoPorClasse
-    .map((c) => {
-      const alvo = CARTEIRA_ALVO[c.classe] ?? 0
-      const delta = c.percentual - alvo
-      return `<tr><td>${esc(c.classe)}</td><td class="r num">${valorCel(c.valor)}</td><td class="r num">${pct1(c.percentual)}</td><td class="r num">${pct1(alvo)}</td><td class="r num">${sinalPct(delta)}</td></tr>`
+// --- 03 · Composição: classe x alvo, vencimento, indexador, rating.
+
+interface LinhaClasse {
+  classe: string
+  valor: number
+  atual: number
+  alvo: number
+  delta: number
+  ajuste: number
+}
+
+function linhasDeClasse(data: RelatorioData): LinhaClasse[] {
+  const total = data.patrimonioAjustado
+  const nomes = new Set<string>([...data.alocacaoPorClasse.map((c) => c.classe), ...Object.keys(CARTEIRA_ALVO)])
+  return Array.from(nomes)
+    .map((classe) => {
+      const atualRow = data.alocacaoPorClasse.find((c) => c.classe === classe)
+      const valor = atualRow?.valor ?? 0
+      const atual = atualRow?.percentual ?? 0
+      const alvo = CARTEIRA_ALVO[classe] ?? 0
+      return { classe, valor, atual, alvo, delta: atual - alvo, ajuste: (alvo / 100) * total - valor }
     })
+    .sort((a, b) => b.valor - a.valor || b.alvo - a.alvo)
+}
+
+function tabelaFatias(
+  fatias: FatiaCarteira[],
+  rotulo: string,
+  valorCel: ValorCel,
+  opcoes: { universo?: string; cor?: string } = {}
+): string {
+  const usaUniverso = opcoes.universo != null && fatias.some((f) => f.percentualUniverso != null)
+  const linhas = fatias
+    .map(
+      (f) => `<tr><td>${esc(f.nome)}</td><td class="r num">${valorCel(f.valor)}</td>
+      ${usaUniverso ? `<td class="r num">${pct1(f.percentualUniverso)}</td>` : ''}
+      <td class="r num">${pct1(f.percentual)}</td>
+      <td class="barc">${barra(usaUniverso ? f.percentualUniverso : f.percentual, opcoes.cor)}</td>
+      <td class="r num mut">${f.posicoes}</td></tr>`
+    )
     .join('')
 
-  return `<section id="s04"><div class="sec-head"><span class="sec-num">04</span><h2>Alocação atual contra a carteira-alvo</h2></div>
-  <div class="tw"><table><thead><tr><th>Classe</th><th class="r">Valor</th><th class="r">% atual</th><th class="r">% alvo</th><th class="r">Δ p.p.</th></tr></thead><tbody>${linhas}</tbody></table></div>
-  <p class="tnote">Alvo definido pelo perfil confirmado do usuário (moderado, 10+ anos, sem resgate, concentração intencional em real) — ver <span class="mono">lib/relatorio/carteiraAlvo.ts</span>.</p>
-  </section>`
+  const totalValor = fatias.reduce((s, f) => s + f.valor, 0)
+  const totalPct = fatias.reduce((s, f) => s + f.percentual, 0)
+  const totalPos = fatias.reduce((s, f) => s + f.posicoes, 0)
+
+  return `<div class="tw"><table><thead><tr><th>${esc(rotulo)}</th><th class="r">Valor</th>
+    ${usaUniverso ? `<th class="r">% ${esc(opcoes.universo!)}</th>` : ''}
+    <th class="r">% do PL</th><th></th><th class="r">Posições</th></tr></thead>
+    <tbody>${linhas}</tbody>
+    <tfoot><tr><td>Total</td><td class="r num">${valorCel(totalValor)}</td>${usaUniverso ? '<td class="r num">100,0%</td>' : ''}<td class="r num">${pct1(totalPct)}</td><td></td><td class="r num">${totalPos}</td></tr></tfoot>
+  </table></div>`
 }
 
-function secaoDiversificacao(data: RelatorioData, n: RelatorioNarrativa, valorCel: (v: number) => string): string {
+function secaoComposicao(data: RelatorioData, valorCel: ValorCel): string {
+  const linhas = linhasDeClasse(data)
+  const linhasHtml = linhas
+    .map(
+      (l, i) =>
+        `<tr><td>${esc(l.classe)}</td><td class="r num">${valorCel(l.valor)}</td><td class="r num">${pct1(l.atual)}</td>
+        <td class="barc">${barra(l.atual, corDaClasse(i))}</td>
+        <td class="r num">${pct1(l.alvo)}</td><td class="r num">${sinalPct(l.delta)}</td>
+        <td class="r num">${Math.abs(l.ajuste) < 1 ? '—' : valorCel(l.ajuste)}</td></tr>`
+    )
+    .join('')
+
+  const aportar = linhas.filter((l) => l.ajuste > 0).reduce((s, l) => s + l.ajuste, 0)
+
+  const comp = data.composicao
+  const blocoVencimento = comp
+    ? `<h3>Por vencimento</h3>
+      <p class="tnote">Escada de toda a carteira, medida a partir da data de posição. Prazo médio ponderado dos papéis com vencimento: <strong>${anosBr(comp.prazoMedioAnos)}</strong>. Vencendo nos próximos 12 meses: <strong>${pct1(comp.vencendoEm12mPct)}</strong> do patrimônio.</p>
+      ${tabelaFatias(comp.porVencimento, 'Faixa de vencimento', valorCel, { cor: 'var(--c6)' })}`
+    : ''
+
+  const blocoIndexador = comp
+    ? `<h3>Por indexador — renda fixa e crédito</h3>
+      ${tabelaFatias(comp.porIndexador, 'Indexador', valorCel, { universo: 'da RF', cor: 'var(--c2)' })}
+      <p class="tnote">Universo: ${comp.universoCredito.posicoes} papéis com remuneração contratada, ${valorCel(comp.universoCredito.valor)} (${pct1(comp.universoCredito.percentual)} do patrimônio).${comp.universoCredito.valorSemIndexador > 0 ? ` Fora deste recorte, ${valorCel(comp.universoCredito.valorSemIndexador)} em veículos de renda fixa sem indexador cadastrado (previdência, fundos abertos, ouro).` : ''}</p>`
+    : ''
+
+  const blocoRating = comp
+    ? `<h3>Por rating de crédito — renda fixa</h3>
+      ${tabelaFatias(comp.porRating, 'Rating', valorCel, { universo: 'da RF', cor: 'var(--c4)' })}
+      <p class="tnote">Ratings informados por emissor e mantidos em <span class="mono">lib/relatorio/ratings.ts</span>; papel fora do mapa entra como “sem rating informado”, nunca como palpite. Quando o emissor tem nota em escala nacional e global, o agrupamento usa a <strong>escala nacional</strong> — ela é relativa ao risco soberano brasileiro, então um AAA(bra) não equivale a um AAA global.</p>`
+    : ''
+
+  return sec(
+    '03',
+    'Composição da carteira',
+    `<h3>Por classe, contra a carteira-alvo</h3>
+  <div class="tw"><table><thead><tr><th>Classe</th><th class="r">Valor</th><th class="r">% atual</th><th></th><th class="r">% alvo</th><th class="r">Δ p.p.</th><th class="r">Ajuste ao alvo</th></tr></thead>
+  <tbody>${linhasHtml}</tbody>
+  <tfoot><tr><td>Total</td><td class="r num">${valorCel(data.patrimonioAjustado)}</td><td class="r num">100,0%</td><td></td><td class="r num">100,0%</td><td></td><td class="r num">${valorCel(aportar)}</td></tr></tfoot></table></div>
+  <p class="tnote">“Ajuste ao alvo” é quanto faltaria (positivo) ou sobraria (negativo) em cada classe para bater o alvo com o patrimônio de hoje; o total é o giro necessário de um lado da conta. Alvo definido pelo perfil confirmado do dono da carteira — ver <span class="mono">lib/relatorio/carteiraAlvo.ts</span>.</p>
+  ${blocoVencimento}
+  ${blocoIndexador}
+  ${blocoRating}`
+  )
+}
+
+// --- 04 · Concentração.
+
+function secaoConcentracao(data: RelatorioData, n: RelatorioNarrativa, valorCel: ValorCel): string {
   const c = data.concentracao
+  const comp = data.composicao
+
+  const maiores = comp
+    ? `<h3>Maiores posições</h3>
+      <div class="tw"><table><thead><tr><th class="r">#</th><th>Papel</th><th>Classe</th><th class="r">Valor</th><th class="r">% do PL</th><th></th></tr></thead>
+      <tbody>${comp.maioresPosicoes
+        .map(
+          (p, i) =>
+            `<tr><td class="r num mut">${String(i + 1).padStart(2, '0')}</td>
+            <td class="tk">${esc(p.ticker)}${p.nome && p.nome !== p.ticker ? `<small>${esc(p.nome)}</small>` : ''}</td>
+            <td>${esc(p.classeEconomica)}</td><td class="r num">${valorCel(p.valor)}</td>
+            <td class="r num">${pct1(p.percentual)}</td><td class="barc">${barra(p.percentual)}</td></tr>`
+        )
+        .join('')}</tbody>
+      <tfoot><tr><td></td><td colspan="2">Soma das dez maiores</td><td class="r num">${valorCel(comp.maioresPosicoes.reduce((s, p) => s + p.valor, 0))}</td><td class="r num">${pct1(c.top10Pct)}</td><td></td></tr></tfoot></table></div>`
+    : ''
+
   const corretora = c.porCorretora
-    .map((x) => `<tr><td>${esc(x.nome)}</td><td class="r num">${valorCel(x.valor)}</td><td class="r num">${pct1(x.percentual)}</td></tr>`)
+    .map(
+      (x) =>
+        `<tr><td>${esc(x.nome)}</td><td class="r num">${valorCel(x.valor)}</td><td class="r num">${pct1(x.percentual)}</td><td class="barc">${barra(x.percentual, 'var(--c3)')}</td></tr>`
+    )
     .join('')
   const setor = c.porSetor
-    .map((x) => `<tr><td>${esc(x.nome)}</td><td class="r num">${valorCel(x.valor)}</td><td class="r num">${pct1(x.percentual)}</td></tr>`)
+    .map(
+      (x) =>
+        `<tr><td>${esc(x.nome)}</td><td class="r num">${valorCel(x.valor)}</td><td class="r num">${pct1(x.percentual)}</td><td class="barc">${barra(x.percentual, 'var(--c5)')}</td></tr>`
+    )
     .join('')
 
-  return `<section id="s05"><div class="sec-head"><span class="sec-num">05</span><h2>Análise de diversificação</h2></div>
-  <div class="prose"><p>${esc(n.analiseDiversificacao)}</p></div>
-  <div class="tw"><table><thead><tr><th>Concentração</th><th class="r">%</th></tr></thead><tbody>
-    <tr><td>Maior posição individual</td><td class="r num">${pct1(c.maiorPosicaoPct)}</td></tr>
-    <tr><td>Top 5 posições</td><td class="r num">${pct1(c.top5Pct)}</td></tr>
-    <tr><td>Top 10 posições</td><td class="r num">${pct1(c.top10Pct)}</td></tr>
+  return sec(
+    '04',
+    'Concentração',
+    `<div class="prose">${paragrafos(n.analiseDiversificacao)}</div>
+  <div class="tw"><table><thead><tr><th>Concentração</th><th class="r">%</th><th></th></tr></thead><tbody>
+    <tr><td>Maior posição individual</td><td class="r num">${pct1(c.maiorPosicaoPct)}</td><td class="barc">${barra(c.maiorPosicaoPct)}</td></tr>
+    <tr><td>Top 5 posições</td><td class="r num">${pct1(c.top5Pct)}</td><td class="barc">${barra(c.top5Pct)}</td></tr>
+    <tr><td>Top 10 posições</td><td class="r num">${pct1(c.top10Pct)}</td><td class="barc">${barra(c.top10Pct)}</td></tr>
   </tbody></table></div>
+  ${maiores}
   <h3>Por corretora</h3>
-  <div class="tw"><table><thead><tr><th>Corretora</th><th class="r">Valor</th><th class="r">%</th></tr></thead><tbody>${corretora}</tbody></table></div>
+  <div class="tw"><table><thead><tr><th>Corretora</th><th class="r">Valor</th><th class="r">% do PL</th><th></th></tr></thead><tbody>${corretora}</tbody></table></div>
   <h3>Por setor (renda variável)</h3>
-  <div class="tw"><table><thead><tr><th>Setor</th><th class="r">Valor</th><th class="r">%</th></tr></thead><tbody>${setor}</tbody></table></div>
-  </section>`
+  <div class="tw"><table><thead><tr><th>Setor</th><th class="r">Valor</th><th class="r">% do PL</th><th></th></tr></thead><tbody>${setor}</tbody></table></div>`
+  )
 }
 
-function secaoRisco(n: RelatorioNarrativa): string {
-  return `<section id="s06"><div class="sec-head"><span class="sec-num">06</span><h2>Análise de risco</h2></div>
-  <div class="prose"><p>${esc(n.analiseRisco)}</p></div>
-  </section>`
-}
+// --- 05 e 06 · Renda fixa.
 
-function secaoRendaFixa(data: RelatorioData, n: RelatorioNarrativa, valorCel: (v: number) => string): string {
+function secaoRendaFixa(data: RelatorioData, n: RelatorioNarrativa, valorCel: ValorCel): string {
   const rf = data.posicoes.filter((p) => p.ehRendaFixa && p.valorMercado > 0).sort((a, b) => b.valorMercado - a.valorMercado)
   const linhas = rf
     .map((p) => {
       const v = p.rendaFixaVeredito
       return `<tr class="sv sv-${v ? VEREDICTO_STRIPE[v.veredicto] : 'n'}">
-        <td class="tk">${esc(p.ticker)}</td><td>${esc(p.categoria)}</td><td>${esc(p.indexador)} ${p.taxa != null ? esc(String(p.taxa)) + '%' : ''}</td>
-        <td class="mono">${p.vencimento ? esc(dataBr(p.vencimento)) : '—'}</td><td class="r num">${valorCel(p.valorMercado)}</td>
+        <td class="tk">${esc(p.ticker)}${p.nome && p.nome !== p.ticker ? `<small>${esc(p.nome)}</small>` : ''}</td>
+        <td>${esc(p.categoria)}</td>
+        <td>${esc(p.indexador)} ${p.taxa != null ? esc(String(p.taxa)) + '%' : ''}</td>
+        <td class="mono">${p.vencimento ? esc(dataBr(p.vencimento)) : '—'}</td>
+        <td>${p.rating ? esc(p.rating.texto) : '—'}${p.rating?.agencia ? `<small>${esc(p.rating.agencia)}</small>` : ''}</td>
+        <td class="r num">${valorCel(p.valorMercado)}</td>
         <td class="r num">${v ? sinalPP(v.premioPontosPercentuais) : '—'}</td>
         <td>${v ? chip(VEREDICTO_CHIP[v.veredicto], VEREDICTO_LABEL[v.veredicto]) : '—'}</td>
       </tr>`
@@ -275,7 +427,10 @@ function secaoRendaFixa(data: RelatorioData, n: RelatorioNarrativa, valorCel: (v
     .join('')
 
   const l = data.limiares
-  return `<section id="s07"><div class="sec-head"><span class="sec-num">07</span><h2>Análise de renda fixa</h2></div>
+  return sec(
+    '05',
+    'Renda fixa e crédito',
+    `<div class="prose">${paragrafos(n.analiseRendaFixa)}</div>
   <div class="callout"><span class="ct">Limiares de indiferença fiscal deste mês</span>
     <ul class="tight">
       <li><strong>${l.limiarIpcaIsento != null ? 'IPCA+' + pct1(l.limiarIpcaIsento, 2) : 'indisponível'}</strong> — isento equivalente ao Tesouro IPCA+ líquido.</li>
@@ -283,62 +438,90 @@ function secaoRendaFixa(data: RelatorioData, n: RelatorioNarrativa, valorCel: (v
       <li><strong>${l.tesouroSelicLiquido != null ? pct1(l.tesouroSelicLiquido, 2) + ' a.a. líquido' : 'indisponível'}</strong> — retorno do Tesouro Selic líquido de IR e custódia; base de comparação dos pós-fixados em CDI.</li>
     </ul>
   </div>
-  <div class="prose"><p>${esc(n.analiseRendaFixa)}</p></div>
-  <div class="tw"><table><thead><tr><th>Papel</th><th>Categoria</th><th>Remuneração</th><th>Venc.</th><th class="r">Valor</th><th class="r">Prêmio</th><th>Veredito</th></tr></thead>
+  <div class="tw"><table><thead><tr><th>Papel</th><th>Cat.</th><th>Remuneração</th><th>Venc.</th><th>Rating</th><th class="r">Valor</th><th class="r">Prêmio</th><th>Veredito</th></tr></thead>
   <tbody>${linhas}</tbody>
-  <tfoot><tr><td colspan="4">Total renda fixa</td><td class="r num">${valorCel(rf.reduce((s, p) => s + p.valorMercado, 0))}</td><td colspan="2"></td></tr></tfoot></table></div>
-  <p class="tnote">Prêmio em pontos percentuais de retorno ao ano, nunca em pontos de %CDI — ver <span class="mono">lib/relatorio/limiares.ts</span>.</p>
-  </section>`
+  <tfoot><tr><td colspan="5">Total renda fixa</td><td class="r num">${valorCel(rf.reduce((s, p) => s + p.valorMercado, 0))}</td><td colspan="2"></td></tr></tfoot></table></div>
+  <p class="tnote">Prêmio em pontos percentuais de retorno ao ano, nunca em pontos de %CDI — ver <span class="mono">lib/relatorio/limiares.ts</span>.</p>`
+  )
 }
 
-const VEREDICTO_STRIPE: Record<string, string> = { manter: 'good', avaliar: 'warn', reduzir: 'crit', nao_avaliavel: '' }
+function secaoListasRendaFixa(data: RelatorioData, valorCel: ValorCel): string {
+  const rf = data.posicoes.filter((p) => p.ehRendaFixa && p.valorMercado > 0 && p.rendaFixaVeredito)
+  const grupos: Record<string, PosicaoAtivo[]> = { manter: [], avaliar: [], reduzir: [] }
+  for (const p of rf) {
+    const v = p.rendaFixaVeredito!.veredicto
+    if (v === 'manter' || v === 'avaliar' || v === 'reduzir') grupos[v].push(p)
+  }
+  const lista = (titulo: string, itens: PosicaoAtivo[]) =>
+    itens.length
+      ? `<h3>${titulo}</h3><div class="tw"><table><thead><tr><th>Papel</th><th>Rating</th><th class="r">Valor</th><th class="r">Prêmio</th></tr></thead><tbody>${itens
+          .sort((a, b) => b.valorMercado - a.valorMercado)
+          .map(
+            (p) =>
+              `<tr><td class="tk">${esc(p.ticker)}${p.nome && p.nome !== p.ticker ? `<small>${esc(p.nome)}</small>` : ''}</td><td>${p.rating ? esc(p.rating.texto) : '—'}</td><td class="r num">${valorCel(p.valorMercado)}</td><td class="r num">${sinalPP(p.rendaFixaVeredito!.premioPontosPercentuais)}</td></tr>`
+          )
+          .join('')}</tbody></table></div>`
+      : ''
 
-function secaoAcoes(data: RelatorioData, n: RelatorioNarrativa, valorCel: (v: number) => string): string {
+  return sec(
+    '06',
+    'Renda fixa: manter, avaliar e reduzir',
+    `<div class="prose"><p>Classificação automática por prêmio sobre o Tesouro equivalente (ver seção 05). “Avaliar” não é recomendação de venda — é onde o prêmio ficou pequeno demais para o prazo, e vale conferir a cotação de saída antes de decidir.</p></div>
+  ${lista('🟢 Manter', grupos.manter)}
+  ${lista('🟡 Avaliar', grupos.avaliar)}
+  ${lista('🔴 Reduzir', grupos.reduzir)}`
+  )
+}
+
+// --- 07 a 11 · Renda variável, risco e performance.
+
+function secaoAcoes(data: RelatorioData, n: RelatorioNarrativa, valorCel: ValorCel): string {
+  const total = data.patrimonioAjustado
   const acoes = data.posicoes
     .filter((p) => !p.ehRendaFixa && p.categoria !== 'FII' && p.valorMercado > 0)
     .sort((a, b) => b.valorMercado - a.valorMercado)
   const linhas = acoes
     .map(
       (p) =>
-        `<tr><td class="tk">${esc(p.ticker)}</td><td>${esc(p.categoria)}</td><td>${esc(p.setor ?? 'Não mapeado')}</td><td class="r num">${valorCel(p.valorMercado)}</td><td class="r num">${pct1(total(data) > 0 ? (p.valorMercado / total(data)) * 100 : 0)}</td></tr>`
+        `<tr><td class="tk">${esc(p.ticker)}${p.nome && p.nome !== p.ticker ? `<small>${esc(p.nome)}</small>` : ''}</td><td>${esc(p.categoria)}</td><td>${esc(p.setor ?? 'Não mapeado')}</td><td class="r num">${valorCel(p.valorMercado)}</td><td class="r num">${pct1(total > 0 ? (p.valorMercado / total) * 100 : 0)}</td><td class="barc">${barra(total > 0 ? (p.valorMercado / total) * 100 : 0)}</td></tr>`
     )
     .join('')
 
-  return `<section id="s08"><div class="sec-head"><span class="sec-num">08</span><h2>Análise de ações e ETFs</h2></div>
-  <div class="prose"><p>${esc(n.analiseAcoes)}</p></div>
-  <div class="tw"><table><thead><tr><th>Ativo</th><th>Categoria</th><th>Setor</th><th class="r">Valor</th><th class="r">% do PL</th></tr></thead><tbody>${linhas}</tbody></table></div>
-  </section>`
+  return sec(
+    '07',
+    'Ações e ETFs',
+    `<div class="prose">${paragrafos(n.analiseAcoes)}</div>
+  <div class="tw"><table><thead><tr><th>Ativo</th><th>Categoria</th><th>Setor</th><th class="r">Valor</th><th class="r">% do PL</th><th></th></tr></thead><tbody>${linhas}</tbody>
+  <tfoot><tr><td colspan="3">Total em ações e ETFs</td><td class="r num">${valorCel(acoes.reduce((s, p) => s + p.valorMercado, 0))}</td><td class="r num">${pct1(total > 0 ? (acoes.reduce((s, p) => s + p.valorMercado, 0) / total) * 100 : 0)}</td><td></td></tr></tfoot></table></div>
+  <h3>ETFs</h3>
+  <div class="prose">${paragrafos(n.analiseEtfs)}</div>`
+  )
 }
 
-function total(data: RelatorioData): number {
-  return data.patrimonioAjustado
-}
-
-function secaoFiis(data: RelatorioData, n: RelatorioNarrativa, valorCel: (v: number) => string): string {
+function secaoFiis(data: RelatorioData, n: RelatorioNarrativa, valorCel: ValorCel): string {
+  const total = data.patrimonioAjustado
   const fiis = data.posicoes.filter((p) => p.categoria === 'FII' && p.valorMercado > 0).sort((a, b) => b.valorMercado - a.valorMercado)
   const linhas = fiis
     .map(
       (p) =>
-        `<tr><td class="tk">${esc(p.ticker)}</td><td>${esc(p.classe)}</td><td class="r num">${valorCel(p.valorMercado)}</td></tr>`
+        `<tr><td class="tk">${esc(p.ticker)}${p.nome && p.nome !== p.ticker ? `<small>${esc(p.nome)}</small>` : ''}</td><td>${esc(p.classe)}</td><td class="r num">${valorCel(p.valorMercado)}</td><td class="r num">${pct1(total > 0 ? (p.valorMercado / total) * 100 : 0)}</td></tr>`
     )
     .join('')
 
-  return `<section id="s09"><div class="sec-head"><span class="sec-num">09</span><h2>Análise de FIIs</h2></div>
-  <div class="prose"><p>${esc(n.analiseFiis)}</p></div>
-  ${fiis.length ? `<div class="tw"><table><thead><tr><th>Fundo</th><th>Classe cadastrada</th><th class="r">Valor</th></tr></thead><tbody>${linhas}</tbody></table></div>` : '<p class="tnote">Nenhum FII com saldo neste mês.</p>'}
-  </section>`
+  return sec(
+    '08',
+    'FIIs',
+    `<div class="prose">${paragrafos(n.analiseFiis)}</div>
+  ${fiis.length ? `<div class="tw"><table><thead><tr><th>Fundo</th><th>Classe cadastrada</th><th class="r">Valor</th><th class="r">% do PL</th></tr></thead><tbody>${linhas}</tbody></table></div>` : '<p class="tnote">Nenhum FII com saldo neste mês.</p>'}`
+  )
 }
 
-function secaoInternacional(n: RelatorioNarrativa): string {
-  return `<section id="s10"><div class="sec-head"><span class="sec-num">10</span><h2>Análise internacional</h2></div>
-  <div class="prose"><p>${esc(n.analiseInternacional)}</p></div>
-  </section>`
+function secaoExterior(n: RelatorioNarrativa): string {
+  return sec('09', 'Exterior', `<div class="prose">${paragrafos(n.analiseInternacional)}</div>`)
 }
 
-function secaoEtfs(n: RelatorioNarrativa): string {
-  return `<section id="s11"><div class="sec-head"><span class="sec-num">11</span><h2>Análise de ETFs</h2></div>
-  <div class="prose"><p>${esc(n.analiseEtfs)}</p></div>
-  </section>`
+function secaoRisco(n: RelatorioNarrativa): string {
+  return sec('10', 'Análise de risco', `<div class="prose">${paragrafos(n.analiseRisco)}</div>`)
 }
 
 function secaoPerformance(data: RelatorioData, n: RelatorioNarrativa): string {
@@ -346,8 +529,10 @@ function secaoPerformance(data: RelatorioData, n: RelatorioNarrativa): string {
   const linha = (nome: string, v: number | null, sufixo = '% a.a.') =>
     `<tr><td>${nome}</td><td class="r num">${v != null ? pct1(v, 2) + (sufixo ? ' ' + sufixo.replace('% a.a.', 'a.a.') : '') : 'indisponível'}</td></tr>`
 
-  return `<section id="s12"><div class="sec-head"><span class="sec-num">12</span><h2>Performance e benchmarks</h2></div>
-  <div class="prose"><p>${esc(n.performanceBenchmarks)}</p></div>
+  return sec(
+    '11',
+    'Performance e benchmarks',
+    `<div class="prose">${paragrafos(n.performanceBenchmarks)}</div>
   <div class="tw"><table><thead><tr><th>Indicador</th><th class="r">Nível</th></tr></thead><tbody>
     ${linha('Selic meta', l.selicMeta)}
     ${linha('CDI', l.cdi)}
@@ -357,72 +542,34 @@ function secaoPerformance(data: RelatorioData, n: RelatorioNarrativa): string {
     ${linha('Tesouro IPCA+ (taxa)', l.tesouroIpcaTaxa)}
     ${linha('Tesouro Prefixado (taxa)', l.tesouroPreTaxa)}
   </tbody></table></div>
-  <p class="tnote">Fonte: Selic/CDI/IPCA via Banco Central (SGS). Ibovespa/IFIX/Tesouro: ${l.benchmarksModo === 'auto' ? 'pesquisados pela IA — ' + esc(l.benchmarksFontes.join(', ') || 'fontes não registradas') : 'informados manualmente'}.</p>
-  </section>`
+  <p class="tnote">Fonte: Selic/CDI/IPCA via Banco Central (SGS). Ibovespa/IFIX/Tesouro: ${l.benchmarksModo === 'auto' ? 'pesquisados pela IA — ' + esc(l.benchmarksFontes.join(', ') || 'fontes não registradas') : 'informados manualmente'}.</p>`
+  )
 }
 
-function secaoPontosFortes(n: RelatorioNarrativa): string {
-  return `<section id="s13"><div class="sec-head"><span class="sec-num">13</span><h2>Pontos fortes</h2></div>
-  <ul class="tight">${n.pontosFortes.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
-  </section>`
-}
+// --- 12 a 17 · Leitura e plano.
 
-function secaoPontosAtencao(n: RelatorioNarrativa, data: RelatorioData): string {
-  return `<section id="s14"><div class="sec-head"><span class="sec-num">14</span><h2>⚠️ Pontos de atenção</h2></div>
-  <ul class="tight">${n.pontosAtencao.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
-  ${data.alertas.length ? `<p class="tnote">Detalhe de cada alerta na seção 02.</p>` : ''}
-  </section>`
-}
-
-function secaoListasRendaFixa(data: RelatorioData, valorCel: (v: number) => string): string {
-  const rf = data.posicoes.filter((p) => p.ehRendaFixa && p.valorMercado > 0 && p.rendaFixaVeredito)
-  const grupos: Record<string, PosicaoAtivo[]> = { manter: [], avaliar: [], reduzir: [] }
-  for (const p of rf) {
-    const v = p.rendaFixaVeredito!.veredicto
-    if (v === 'manter' || v === 'avaliar' || v === 'reduzir') grupos[v].push(p)
-  }
-  const lista = (titulo: string, chipClasse: string, itens: PosicaoAtivo[]) =>
-    itens.length
-      ? `<h3>${titulo}</h3><div class="tw"><table><thead><tr><th>Papel</th><th class="r">Valor</th><th class="r">Prêmio</th></tr></thead><tbody>${itens
-          .sort((a, b) => b.valorMercado - a.valorMercado)
-          .map(
-            (p) =>
-              `<tr><td class="tk">${esc(p.ticker)}</td><td class="r num">${valorCel(p.valorMercado)}</td><td class="r num">${sinalPP(p.rendaFixaVeredito!.premioPontosPercentuais)}</td></tr>`
-          )
-          .join('')}</tbody></table></div>`
-      : ''
-
-  return `<section id="s15"><div class="sec-head"><span class="sec-num">15</span><h2>Renda fixa: manter, avaliar e reduzir</h2></div>
-  <div class="prose"><p>Classificação automática por prêmio sobre o Tesouro equivalente (ver seção 07). "Avaliar" não é uma recomendação de venda — é onde o prêmio ficou pequeno demais para o prazo, e vale conferir a cotação de saída antes de decidir.</p></div>
-  ${lista('🟢 Manter', 'g', grupos.manter)}
-  ${lista('🟡 Avaliar', 'y', grupos.avaliar)}
-  ${lista('🔴 Reduzir', 'r', grupos.reduzir)}
-  </section>`
+function secaoFortesAtencao(n: RelatorioNarrativa): string {
+  return sec(
+    '12',
+    'Pontos fortes e pontos de atenção',
+    `<div class="split">
+    <div class="panel"><p class="pt">Pontos fortes</p><ul class="tight">${n.pontosFortes.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>
+    <div class="panel"><p class="pt">Pontos de atenção</p><ul class="tight">${n.pontosAtencao.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>
+  </div>`
+  )
 }
 
 function secaoOportunidades(n: RelatorioNarrativa): string {
-  return `<section id="s16"><div class="sec-head"><span class="sec-num">16</span><h2>Oportunidades</h2></div>
-  <ul class="tight">${n.oportunidades.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
-  </section>`
-}
-
-function secaoCarteiraAlvo(data: RelatorioData, n: RelatorioNarrativa): string {
-  const linhas = data.alocacaoPorClasse
-    .map((c) => {
-      const alvo = CARTEIRA_ALVO[c.classe] ?? 0
-      return `<tr><td>${esc(c.classe)}</td><td class="r num">${pct1(c.percentual)}</td><td class="r num">${pct1(alvo)}</td></tr>`
-    })
-    .join('')
-  return `<section id="s17"><div class="sec-head"><span class="sec-num">17</span><h2>Carteira-alvo recomendada</h2></div>
-  <div class="tw"><table><thead><tr><th>Classe</th><th class="r">Atual</th><th class="r">Alvo</th></tr></thead><tbody>${linhas}</tbody></table></div>
-  <div class="prose"><p>${esc(n.carteiraAlvoComentario)}</p></div>
-  </section>`
+  return sec('13', 'Oportunidades', `<ul class="tight">${n.oportunidades.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>`)
 }
 
 function secaoRebalanceamento(n: RelatorioNarrativa): string {
-  return `<section id="s18"><div class="sec-head"><span class="sec-num">18</span><h2>Plano de rebalanceamento</h2></div>
-  <div class="prose"><p>${esc(n.planoRebalanceamento)}</p></div>
-  </section>`
+  return sec(
+    '14',
+    'Plano de rebalanceamento',
+    `<div class="prose">${paragrafos(n.carteiraAlvoComentario)}${paragrafos(n.planoRebalanceamento)}</div>
+  <p class="tnote">Os números por classe, com o ajuste necessário até o alvo, estão na seção 03.</p>`
+  )
 }
 
 function secaoPlanoAcao(n: RelatorioNarrativa): string {
@@ -431,49 +578,76 @@ function secaoPlanoAcao(n: RelatorioNarrativa): string {
       .map((i) => `<li><div><p>${chip(PRIORIDADE_CHIP[i.prioridade] ?? 'n', PRIORIDADE_LABEL[i.prioridade] ?? i.prioridade)}</p><p>${esc(i.texto)}</p></div></li>`)
       .join('')}</ul>`
 
-  return `<section id="s19"><div class="sec-head"><span class="sec-num">19</span><h2>Plano de ação — 30, 90 e 180 dias</h2></div>
-  ${bloco('Próximos 30 dias', n.planoAcao.dias30)}
+  return sec(
+    '15',
+    'Plano de ação — 30, 90 e 180 dias',
+    `${bloco('Próximos 30 dias', n.planoAcao.dias30)}
   ${bloco('Próximos 90 dias', n.planoAcao.dias90)}
-  ${bloco('Próximos 180 dias', n.planoAcao.dias180)}
-  </section>`
+  ${bloco('Próximos 180 dias', n.planoAcao.dias180)}`
+  )
 }
 
 function secaoTop10(n: RelatorioNarrativa): string {
-  return `<section id="s20"><div class="sec-head"><span class="sec-num">20</span><h2>Top 10 recomendações</h2></div>
-  <ol class="acts">${n.top10
-    .map(
-      (t, i) =>
-        `<li><span class="n">${String(i + 1).padStart(2, '0')}</span><div><h4>${esc(t.acao)}</h4>
+  return sec(
+    '16',
+    'Top 10 recomendações',
+    `<ol class="acts">${n.top10
+      .map(
+        (t, i) =>
+          `<li><span class="n">${String(i + 1).padStart(2, '0')}</span><div><h4>${esc(t.acao)}</h4>
         <dl><dt>Motivo</dt><dd>${esc(t.motivo)}</dd><dt>Impacto</dt><dd>${esc(t.impactoEsperado)}</dd><dt>Risco</dt><dd>${esc(t.risco)}</dd><dt>Prazo</dt><dd>${esc(t.prazo)}</dd><dt>Convicção</dt><dd>${esc(CONVICCAO_LABEL[t.conviccao] ?? t.conviccao)}</dd></dl>
         </div></li>`
-    )
-    .join('')}</ol>
-  </section>`
-}
-
-function secaoRiscosPremissas(data: RelatorioData, n: RelatorioNarrativa): string {
-  const l = data.limiares
-  return `<section id="s21"><div class="sec-head"><span class="sec-num">21</span><h2>Riscos e premissas</h2></div>
-  <ul class="tight">
-    <li>Alíquota de IR assumida: ${pct1(l.aliquotaIrPremissa * 100)} (prazo &gt; 720 dias). Custódia B3: ${pct1(l.custodiaB3Premissa * 100)} a.a.</li>
-    <li>Benchmarks de mercado: ${l.benchmarksModo === 'auto' ? 'pesquisados pela IA em ' + esc(dataBr(l.benchmarksGeradoEm)) : 'informados manualmente na geração deste relatório'}.</li>
-    ${n.riscosPremissas.map((p) => `<li>${esc(p)}</li>`).join('')}
-  </ul>
-  </section>`
+      )
+      .join('')}</ol>`
+  )
 }
 
 function secaoConclusao(n: RelatorioNarrativa): string {
-  return `<section id="s22"><div class="sec-head"><span class="sec-num">22</span><h2>Conclusão executiva</h2></div>
-  <div class="prose"><p class="big-verdict">${esc(n.conclusaoExecutiva)}</p></div>
-  </section>`
+  return sec('17', 'Conclusão executiva', `<div class="prose"><p class="big-verdict">${esc(n.conclusaoExecutiva)}</p></div>`)
+}
+
+// --- 18 · Anexo técnico: premissas e qualidade de dado.
+
+function secaoAnexo(data: RelatorioData, n: RelatorioNarrativa, valorCel: ValorCel): string {
+  const l = data.limiares
+  const criticos = data.alertas.filter((a) => a.severidade === 'critica')
+  const resto = data.alertas.filter((a) => a.severidade !== 'critica')
+
+  const calloutCritico = (a: AlertaQualidade) =>
+    `<div class="callout crit"><span class="ct">Crítica${a.valorEnvolvido != null ? ' · ' + valorCel(a.valorEnvolvido) : ''}</span>
+      <p><strong>${esc(a.titulo)}</strong></p><p>${esc(a.descricao)}</p></div>`
+
+  const tabelaResto = resto.length
+    ? `<div class="tw"><table><thead><tr><th>Severidade</th><th>Observação</th><th class="r">Valor</th></tr></thead><tbody>${resto
+        .map(
+          (a) =>
+            `<tr><td>${chip(SEVERIDADE_CHIP[a.severidade], SEVERIDADE_LABEL[a.severidade])}</td><td><strong>${esc(a.titulo)}</strong><br><span class="mut">${esc(a.descricao)}</span></td><td class="r num">${a.valorEnvolvido != null ? valorCel(a.valorEnvolvido) : '—'}</td></tr>`
+        )
+        .join('')}</tbody></table></div>`
+    : '<p class="tnote">Nenhuma observação de qualidade de dado além das acima.</p>'
+
+  return sec(
+    '18',
+    'Anexo técnico — premissas e qualidade dos dados',
+    `<h3>Premissas</h3>
+  <ul class="tight">
+    <li>Alíquota de IR assumida: ${pct1(l.aliquotaIrPremissa * 100)} (prazo &gt; 720 dias). Custódia B3: ${pct1(l.custodiaB3Premissa * 100)} a.a.</li>
+    <li>Benchmarks de mercado: ${l.benchmarksModo === 'auto' ? 'pesquisados pela IA em ' + esc(dataBr(l.benchmarksGeradoEm)) : 'informados manualmente na geração deste relatório'}.</li>
+    <li>Base do relatório: ${data.totais.ativos} ativos cadastrados, ${data.totais.ativosComSaldo} com saldo, ${data.totais.movimentacoes} movimentações. Patrimônio registrado ${valorCel(data.patrimonioRegistrado)}; patrimônio ajustado (100% deste relatório) ${valorCel(data.patrimonioAjustado)}.</li>
+    ${n.riscosPremissas.map((p) => `<li>${esc(p)}</li>`).join('')}
+  </ul>
+  <h3>Qualidade dos dados</h3>
+  ${criticos.length ? criticos.map(calloutCritico).join('') : '<div class="callout good"><span class="ct">Sem bloqueios</span><p>Nenhum alerta crítico neste mês — o patrimônio ajustado é igual ao registrado.</p></div>'}
+  ${tabelaResto}`
+  )
 }
 
 // ------------------------------------------------------------------ CSS
 
 const CSS = `
-:root{--paper:#F6F7F4;--surface:#FCFCFB;--surface-2:#EFF1EC;--surface-3:#E6E9E2;--ink:#141A17;--ink-2:#3D4741;--muted:#6B746E;--rule:#DCDFD8;--rule-strong:#B6BCB3;--accent:#00756D;--accent-soft:#E0EFEC;--good:#2C7A4B;--good-bg:#E6F1EA;--good-line:#2C7A4B;--warn:#946705;--warn-bg:#F6EEDA;--warn-line:#B98A12;--crit:#A6382F;--crit-bg:#F7E8E6;--crit-line:#A6382F}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#121614;--surface:#181D1A;--surface-2:#1E2420;--surface-3:#262D28;--ink:#E9ECE7;--ink-2:#C1C8C0;--muted:#8D958E;--rule:#2B322D;--rule-strong:#414A44;--accent:#45C4B7;--accent-soft:#12302C;--good:#63C288;--good-bg:#152A1E;--good-line:#3E9E63;--warn:#DCAC42;--warn-bg:#2A2414;--warn-line:#B98A12;--crit:#E37A70;--crit-bg:#2D1C1A;--crit-line:#B9564B}}
-:root[data-theme="dark"]{--paper:#121614;--surface:#181D1A;--surface-2:#1E2420;--surface-3:#262D28;--ink:#E9ECE7;--ink-2:#C1C8C0;--muted:#8D958E;--rule:#2B322D;--rule-strong:#414A44;--accent:#45C4B7;--accent-soft:#12302C;--good:#63C288;--good-bg:#152A1E;--good-line:#3E9E63;--warn:#DCAC42;--warn-bg:#2A2414;--warn-line:#B98A12;--crit:#E37A70;--crit-bg:#2D1C1A;--crit-line:#B9564B}
+:root{--paper:#F6F7F4;--surface:#FCFCFB;--surface-2:#EFF1EC;--surface-3:#E6E9E2;--ink:#141A17;--ink-2:#3D4741;--muted:#6B746E;--rule:#DCDFD8;--rule-strong:#B6BCB3;--accent:#00756D;--accent-soft:#E0EFEC;--good:#2C7A4B;--good-bg:#E6F1EA;--good-line:#2C7A4B;--warn:#946705;--warn-bg:#F6EEDA;--warn-line:#B98A12;--crit:#A6382F;--crit-bg:#F7E8E6;--crit-line:#A6382F;--c1:#00756D;--c2:#2C7A4B;--c3:#946705;--c4:#6B5CA5;--c5:#A6382F;--c6:#3D7AA6;--c7:#8A7A4E;--c8:#6B746E}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#121614;--surface:#181D1A;--surface-2:#1E2420;--surface-3:#262D28;--ink:#E9ECE7;--ink-2:#C1C8C0;--muted:#8D958E;--rule:#2B322D;--rule-strong:#414A44;--accent:#45C4B7;--accent-soft:#12302C;--good:#63C288;--good-bg:#152A1E;--good-line:#3E9E63;--warn:#DCAC42;--warn-bg:#2A2414;--warn-line:#B98A12;--crit:#E37A70;--crit-bg:#2D1C1A;--crit-line:#B9564B;--c1:#45C4B7;--c2:#63C288;--c3:#DCAC42;--c4:#A89AE0;--c5:#E37A70;--c6:#7FB6DC;--c7:#C9B67E;--c8:#8D958E}}
+:root[data-theme="dark"]{--paper:#121614;--surface:#181D1A;--surface-2:#1E2420;--surface-3:#262D28;--ink:#E9ECE7;--ink-2:#C1C8C0;--muted:#8D958E;--rule:#2B322D;--rule-strong:#414A44;--accent:#45C4B7;--accent-soft:#12302C;--good:#63C288;--good-bg:#152A1E;--good-line:#3E9E63;--warn:#DCAC42;--warn-bg:#2A2414;--warn-line:#B98A12;--crit:#E37A70;--crit-bg:#2D1C1A;--crit-line:#B9564B;--c1:#45C4B7;--c2:#63C288;--c3:#DCAC42;--c4:#A89AE0;--c5:#E37A70;--c6:#7FB6DC;--c7:#C9B67E;--c8:#8D958E}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:"Libre Franklin",-apple-system,sans-serif;font-size:16px;line-height:1.6}
 .shell{max-width:1180px;margin:0 auto;padding:0 24px 80px}
@@ -483,6 +657,7 @@ a{color:var(--accent)}
 strong{font-weight:600;color:var(--ink)}
 .mono{font-family:"IBM Plex Mono",monospace}
 .num{font-variant-numeric:tabular-nums}
+.mut{color:var(--muted)}
 .masthead{padding:48px 0 0;border-bottom:1px solid var(--rule-strong)}
 .kicker{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 16px}
 h1{font-family:"Newsreader",Georgia,serif;font-weight:400;font-size:clamp(2rem,5vw,3rem);line-height:1.08;margin:0 0 20px}
@@ -493,7 +668,7 @@ h1{font-family:"Newsreader",Georgia,serif;font-weight:400;font-size:clamp(2rem,5
 .ledger>div:first-child{border-left:0;padding-left:0}
 .ledger dt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
 .ledger dd{margin:0;font-family:"Newsreader",serif;font-size:1.7rem}
-.ledger dd small{display:block;font-family:"Libre Franklin",sans-serif;font-size:11px;color:var(--muted);margin-top:6px}
+.ledger dd small{display:block;font-family:"Libre Franklin",sans-serif;font-size:11px;color:var(--muted);margin-top:6px;line-height:1.35}
 .ledger .lead dd{color:var(--accent)}
 .layout{display:grid;grid-template-columns:1fr;gap:0}
 @media(min-width:1000px){.layout{grid-template-columns:180px 1fr;gap:48px}.rail{position:sticky;top:20px;padding-top:40px}}
@@ -509,6 +684,12 @@ section+section{border-top:1px solid var(--rule)}
 .sec-num{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);padding-top:.4em}
 h2{font-family:"Newsreader",serif;font-weight:400;font-size:clamp(1.4rem,3vw,1.9rem);margin:0}
 h3{font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+.stack{display:flex;width:100%;height:16px;margin:22px 0 12px;overflow:hidden;background:var(--surface-2);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.stack span{display:block;height:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:6px 20px;margin:0 0 24px;padding:0;font-size:12.5px;color:var(--ink-2)}
+.legend li{display:flex;align-items:center;gap:7px}
+.legend b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.legend .dot{width:9px;height:9px;border-radius:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .callout{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);padding:16px 18px;margin:18px 0}
 .callout.crit{border-left-color:var(--crit-line);background:var(--crit-bg)}
 .callout.warn{border-left-color:var(--warn-line);background:var(--warn-bg)}
@@ -518,12 +699,16 @@ h3{font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase
 .tw{overflow-x:auto;margin:18px 0;border-top:1px solid var(--rule-strong);border-bottom:1px solid var(--rule-strong)}
 table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
 thead th{font-family:"IBM Plex Mono",monospace;font-size:10px;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 10px 9px;border-bottom:1px solid var(--rule-strong);white-space:nowrap}
-tbody td{padding:8px 10px;border-bottom:1px solid var(--rule)}
+tbody td{padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
 tbody tr:last-child td{border-bottom:0}
 th.r,td.r{text-align:right}
 td.tk{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:500;white-space:nowrap}
+td.tk small,td small{display:block;font-family:"Libre Franklin",sans-serif;font-size:11px;font-weight:400;color:var(--muted);white-space:normal;margin-top:2px}
+td.barc{width:110px;min-width:90px;padding-top:13px}
+.bar{display:block;height:6px;background:var(--surface-3);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bar>i{display:block;height:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 tfoot td{padding:9px 10px;border-top:1px solid var(--rule-strong);font-weight:600}
-.tnote{font-size:12px;color:var(--muted);margin:8px 0 0}
+.tnote{font-size:12px;color:var(--muted);margin:8px 0 0;max-width:80ch}
 tr.sv td:first-child{border-left:3px solid transparent;padding-left:8px}
 tr.sv-good td:first-child{border-left-color:var(--good-line)}
 tr.sv-warn td:first-child{border-left-color:var(--warn-line)}
@@ -536,9 +721,10 @@ tr.sv-crit td:first-child{border-left-color:var(--crit-line)}
 .chip.n{color:var(--muted);border-color:var(--rule-strong);background:var(--surface-2)}
 ul.tight{margin:12px 0;padding-left:20px}
 ul.tight li{margin:0 0 7px}
-.split{display:grid;gap:20px;grid-template-columns:1fr}
+.split{display:grid;gap:20px;grid-template-columns:1fr;margin:20px 0}
 @media(min-width:760px){.split{grid-template-columns:1fr 1fr}}
 .panel{background:var(--surface);border:1px solid var(--rule);padding:16px 18px}
+.panel ul.tight{margin:0;padding-left:18px}
 .pt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
 .acts{list-style:none;margin:16px 0;padding:0;display:grid;gap:0}
 .acts li{display:grid;grid-template-columns:30px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--rule)}
@@ -552,12 +738,12 @@ ul.tight li{margin:0 0 7px}
 footer{border-top:1px solid var(--rule-strong);margin-top:48px;padding:24px 0 0;font-size:12px;color:var(--muted)}
 @media print{
   @page{size:A4;margin:14mm 12mm 16mm}
-  :root,:root[data-theme="dark"],:root:not([data-theme="light"]){--paper:#fff;--surface:#FBFBF9;--ink:#141A17;--ink-2:#3D4741;--muted:#5E6862;--rule:#D3D7CE;--rule-strong:#9AA197;--accent:#00655E}
+  :root,:root[data-theme="dark"],:root:not([data-theme="light"]){--paper:#fff;--surface:#FBFBF9;--ink:#141A17;--ink-2:#3D4741;--muted:#5E6862;--rule:#D3D7CE;--rule-strong:#9AA197;--accent:#00655E;--c1:#00756D;--c2:#2C7A4B;--c3:#946705;--c4:#6B5CA5;--c5:#A6382F;--c6:#3D7AA6;--c7:#8A7A4E;--c8:#6B746E}
   .rail{display:none!important}
   .layout{display:block}
   .tw{overflow:visible}
   table{font-size:10.5px}
-  tr,.callout,.panel,.acts li{break-inside:avoid}
+  tr,.callout,.panel,.acts li,.stack{break-inside:avoid}
   h2,h3,.sec-head{break-after:avoid}
 }
 `
