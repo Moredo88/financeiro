@@ -28,6 +28,7 @@ interface Ativo {
   categoria_id: string | null
   segmento_id: string | null
   banco_corretora_id: string | null
+  conta_investimento_id?: string | null
   casa_analise_id: string | null
   gestora_securitizadora: string | null
   fonte_recomendacao: string | null
@@ -63,6 +64,13 @@ function ehRendaVariavel(nome: string | null | undefined) {
   return nome.trim().toUpperCase().startsWith('RENDA VAR')
 }
 
+const SELECT_ATIVOS = 'id, ticker, nome, classe_id, categoria_id, segmento_id, banco_corretora_id, casa_analise_id, gestora_securitizadora, fonte_recomendacao, descricao, data_aquisicao, status, taxa, indexador, data_vencimento, classes_ativo(nome)'
+
+// Conta do ativo: tabela e coluna vem da migration
+// 20260922_contas_investimento.sql. Enquanto ela nao roda, a tela
+// segue funcionando sem o campo Conta.
+const CONTA_PADRAO = 'Sergio'
+
 const INDEXADOR_OPTIONS = [
   { value: 'PRÉ-FIX', label: 'PRÉ-FIX' },
   { value: 'PÓS-FIX (CDI)', label: 'PÓS-FIX (CDI)' },
@@ -79,6 +87,7 @@ const emptyForm = {
   categoria_id: '',
   segmento_id: '',
   banco_corretora_id: '',
+  conta_investimento_id: '',
   casa_analise_id: '',
   gestora_securitizadora: '',
   fonte_recomendacao: '',
@@ -97,6 +106,7 @@ export default function AtivosPage() {
   const [classeFiltro, setClasseFiltro] = useState<string[]>([])
   const [categoriaFiltro, setCategoriaFiltro] = useState<string[]>([])
   const [corretoraFiltro, setCorretoraFiltro] = useState<string[]>([])
+  const [contaFiltro, setContaFiltro] = useState<string[]>([])
   const [statusFiltro, setStatusFiltro] = useState<string[]>([])
 
   const [classes, setClasses] = useState<LookupItem[]>([])
@@ -104,6 +114,8 @@ export default function AtivosPage() {
   const [segmentos, setSegmentos] = useState<LookupItem[]>([])
   const [bancos, setBancos] = useState<LookupItem[]>([])
   const [casasAnalise, setCasasAnalise] = useState<LookupItem[]>([])
+  const [contas, setContas] = useState<LookupItem[]>([])
+  const [contaDisponivel, setContaDisponivel] = useState(false)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
@@ -118,34 +130,37 @@ export default function AtivosPage() {
 
   useEffect(() => {
     async function loadLookups() {
-      const [c1, c2, c3, c4, c5] = await Promise.all([
+      const [c1, c2, c3, c4, c5, c6] = await Promise.all([
         supabase.from('classes_ativo').select('id, nome').eq('ativo', true).order('nome'),
         supabase.from('categorias_ativo').select('id, nome').eq('ativo', true).order('nome'),
         supabase.from('segmentos').select('id, nome').eq('ativo', true).order('nome'),
         supabase.from('bancos_corretoras').select('id, nome').eq('ativo', true).order('nome'),
         supabase.from('casas_analise').select('id, nome').eq('ativo', true).order('nome'),
+        supabase.from('contas_investimento').select('id, nome').eq('ativo', true).order('nome'),
       ])
       setClasses(c1.data ?? [])
       setCategorias(c2.data ?? [])
       setSegmentos(c3.data ?? [])
       setBancos(c4.data ?? [])
       setCasasAnalise(c5.data ?? [])
+      setContas(c6.data ?? [])
+      setContaDisponivel(!c6.error)
     }
     loadLookups()
   }, [])
 
   const loadAtivos = useCallback(async () => {
     setLoading(true)
-    let query = supabase
-      .from('ativos')
-      .select('id, ticker, nome, classe_id, categoria_id, segmento_id, banco_corretora_id, casa_analise_id, gestora_securitizadora, fonte_recomendacao, descricao, data_aquisicao, status, taxa, indexador, data_vencimento, classes_ativo(nome)')
-      .order('ticker')
-
-    if (busca.trim()) {
-      query = query.or(`ticker.ilike.%${busca.trim()}%,nome.ilike.%${busca.trim()}%`)
+    const consulta = (colunas: string) => {
+      let query = supabase.from('ativos').select(colunas).order('ticker')
+      if (busca.trim()) {
+        query = query.or(`ticker.ilike.%${busca.trim()}%,nome.ilike.%${busca.trim()}%`)
+      }
+      return query
     }
 
-    const { data } = await query
+    let { data, error } = await consulta(`${SELECT_ATIVOS}, conta_investimento_id`)
+    if (error) ({ data, error } = await consulta(SELECT_ATIVOS))
     setAtivos((data as unknown as Ativo[]) ?? [])
     setLoading(false)
   }, [busca])
@@ -160,7 +175,7 @@ export default function AtivosPage() {
 
   function openCreate() {
     setEditId(null)
-    setForm(emptyForm)
+    setForm({ ...emptyForm, conta_investimento_id: contas.find((c) => c.nome === CONTA_PADRAO)?.id ?? '' })
     setModalOpen(true)
   }
 
@@ -183,6 +198,7 @@ export default function AtivosPage() {
       categoria_id: a.categoria_id ?? '',
       segmento_id: a.segmento_id ?? '',
       banco_corretora_id: a.banco_corretora_id ?? '',
+      conta_investimento_id: a.conta_investimento_id ?? '',
       casa_analise_id: a.casa_analise_id ?? '',
       gestora_securitizadora: a.gestora_securitizadora ?? '',
       fonte_recomendacao: a.fonte_recomendacao ?? '',
@@ -216,6 +232,7 @@ export default function AtivosPage() {
       taxa: form.taxa ? parseFloat(form.taxa) : null,
       indexador: form.indexador || null,
       data_vencimento: form.data_vencimento || null,
+      ...(contaDisponivel ? { conta_investimento_id: form.conta_investimento_id || null } : {}),
     }
 
     if (editId) {
@@ -275,6 +292,7 @@ export default function AtivosPage() {
       { header: 'Categoria', width: 18, value: (a) => nomeDe(categorias, a.categoria_id) },
       { header: 'Segmento', width: 24, value: (a) => nomeDe(segmentos, a.segmento_id) },
       { header: 'Banco / Corretora', width: 20, value: (a) => nomeDe(bancos, a.banco_corretora_id) },
+      ...(contaDisponivel ? [{ header: 'Conta', width: 14, value: (a: Ativo) => nomeDe(contas, a.conta_investimento_id ?? null) }] : []),
       { header: 'Casa de Analise', width: 20, value: (a) => nomeDe(casasAnalise, a.casa_analise_id) },
       { header: 'Gestora / Securitizadora', width: 24, value: (a) => a.gestora_securitizadora },
       { header: 'Fonte da Recomendacao', width: 24, value: (a) => a.fonte_recomendacao },
@@ -290,6 +308,7 @@ export default function AtivosPage() {
     if (classeFiltro.length && !classeFiltro.includes(a.classe_id ?? '')) return false
     if (categoriaFiltro.length && !categoriaFiltro.includes(a.categoria_id ?? '')) return false
     if (corretoraFiltro.length && !corretoraFiltro.includes(a.banco_corretora_id ?? '')) return false
+    if (contaFiltro.length && !contaFiltro.includes(a.conta_investimento_id ?? '')) return false
     if (statusFiltro.length && !statusFiltro.includes(a.status)) return false
     return true
   })
@@ -318,7 +337,7 @@ export default function AtivosPage() {
             </Button>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-3 sm:grid-cols-2 ${contaDisponivel ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
           <MultiSelect
             label="Classe / Tipo de Ativo"
             options={toOptions(classes)}
@@ -337,6 +356,14 @@ export default function AtivosPage() {
             values={corretoraFiltro}
             onChange={setCorretoraFiltro}
           />
+          {contaDisponivel && (
+            <MultiSelect
+              label="Conta"
+              options={toOptions(contas)}
+              values={contaFiltro}
+              onChange={setContaFiltro}
+            />
+          )}
           <MultiSelect
             label="Status"
             options={STATUS_OPTIONS}
@@ -363,6 +390,7 @@ export default function AtivosPage() {
             extras={['categoria', 'taxa']}
             nomeCategoria={(id) => nomeDe(categorias, id)}
             nomeCorretora={(id) => nomeDe(bancos, id)}
+            nomeConta={contaDisponivel ? (id) => nomeDe(contas, id) : undefined}
             onEdit={openEdit}
             onDelete={abrirExclusao}
           />
@@ -373,6 +401,7 @@ export default function AtivosPage() {
             extras={['taxa', 'indexador']}
             nomeCategoria={(id) => nomeDe(categorias, id)}
             nomeCorretora={(id) => nomeDe(bancos, id)}
+            nomeConta={contaDisponivel ? (id) => nomeDe(contas, id) : undefined}
             onEdit={openEdit}
             onDelete={abrirExclusao}
           />
@@ -434,6 +463,16 @@ export default function AtivosPage() {
             value={form.banco_corretora_id}
             onChange={(e) => updateForm('banco_corretora_id', e.target.value)}
           />
+          {contaDisponivel && (
+            <Select
+              id="f-conta"
+              label="Conta"
+              options={toOptions(contas)}
+              placeholder="Selecione..."
+              value={form.conta_investimento_id}
+              onChange={(e) => updateForm('conta_investimento_id', e.target.value)}
+            />
+          )}
           <Select
             id="f-casa"
             label="Casa de Analise"
@@ -549,6 +588,7 @@ function QuadroAtivos({
   extras = [],
   nomeCategoria,
   nomeCorretora,
+  nomeConta,
   onEdit,
   onDelete,
 }: {
@@ -558,11 +598,12 @@ function QuadroAtivos({
   extras?: ColunaExtra[]
   nomeCategoria: (id: string | null) => string
   nomeCorretora: (id: string | null) => string
+  nomeConta?: (id: string | null) => string
   onEdit: (a: Ativo) => void
   onDelete: (id: string) => void
 }) {
   const mostra = (c: ColunaExtra) => extras.includes(c)
-  const colunas = 6 + extras.length
+  const colunas = 6 + extras.length + (nomeConta ? 1 : 0)
 
   // Cada quadro ordena por conta propria.
   const { ordem, alternar } = useOrdenacao({ campo: 'ticker', direcao: 'asc' })
@@ -574,6 +615,7 @@ function QuadroAtivos({
       case 'classe': return a.classes_ativo?.nome
       case 'categoria': return nomeCategoria(a.categoria_id)
       case 'corretora': return nomeCorretora(a.banco_corretora_id)
+      case 'conta': return nomeConta?.(a.conta_investimento_id ?? null)
       case 'taxa': return a.taxa
       case 'indexador': return a.indexador
       case 'status': return a.status
@@ -598,6 +640,9 @@ function QuadroAtivos({
                 <Th campo="categoria" ordem={ordem} aoOrdenar={alternar}>Categoria</Th>
               )}
               <Th campo="corretora" ordem={ordem} aoOrdenar={alternar}>Corretora</Th>
+              {nomeConta && (
+                <Th campo="conta" ordem={ordem} aoOrdenar={alternar}>Conta</Th>
+              )}
               {mostra('taxa') && (
                 <Th campo="taxa" ordem={ordem} aoOrdenar={alternar} alinhamento="right">Taxa (%)</Th>
               )}
@@ -621,6 +666,9 @@ function QuadroAtivos({
                     <td className="px-3 py-2.5 text-slate-600">{nomeCategoria(a.categoria_id)}</td>
                   )}
                   <td className="px-3 py-2.5 text-slate-600">{nomeCorretora(a.banco_corretora_id)}</td>
+                  {nomeConta && (
+                    <td className="px-3 py-2.5 text-slate-600">{nomeConta(a.conta_investimento_id ?? null)}</td>
+                  )}
                   {mostra('taxa') && (
                     <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">
                       {a.taxa != null ? a.taxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : ''}

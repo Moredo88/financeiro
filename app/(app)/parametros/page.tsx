@@ -42,7 +42,7 @@ interface Ativo {
 
 type LookupTable =
   | 'classes_ativo' | 'categorias_ativo' | 'segmentos' | 'bancos_corretoras' | 'casas_analise'
-  | 'carteiras' | 'estrategias' | 'tags_exposicao'
+  | 'carteiras' | 'estrategias' | 'tags_exposicao' | 'contas_investimento'
 type Section = 'ativos' | LookupTable
 
 const SECTIONS: { key: Section; label: string }[] = [
@@ -55,6 +55,7 @@ const SECTIONS: { key: Section; label: string }[] = [
   { key: 'carteiras', label: 'Carteiras' },
   { key: 'estrategias', label: 'Estrategias' },
   { key: 'tags_exposicao', label: 'Tags de Exposicao' },
+  { key: 'contas_investimento', label: 'Contas' },
 ]
 
 const RECOMENDACAO_OPTIONS = [
